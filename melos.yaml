@@ -1,0 +1,10 @@
+name: fieldup
+description: FieldUp monorepo — Flutter sports booking platform
+
+packages:
+  - apps/user_app
+  - apps/vendor_app
+  - apps/admin_app
+  - packages/core
+  - packages/design_system
+  - packages/supabase_client

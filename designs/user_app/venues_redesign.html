@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FieldUp - Venues</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "brand":             "#c3f400",
+          "brand-dim":         "#abd600",
+          "on-brand":          "#283500",
+          "surface":           "#131313",
+          "surface-low":       "#1c1b1b",
+          "surface-mid":       "#201f1f",
+          "surface-high":      "#2a2a2a",
+          "surface-highest":   "#353534",
+          "outline":           "#8e9379",
+          "outline-faint":     "#444933",
+          "on-surface":        "#e5e2e1",
+          "on-surface-var":    "#c4c9ac",
+          "teal":              "#4ead8d",
+          "teal-dim":          "#3b8668",
+          "teal-dark":         "#2a5f48",
+          "error":             "#ffb4ab",
+        },
+        fontFamily: {
+          sans:    ["Inter", "sans-serif"],
+          display: ["Barlow Condensed", "sans-serif"],
+        },
+      }
+    }
+  }
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    min-height: 100dvh;
+    background-color: #131313;
+    font-family: 'Inter', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .glass {
+    background: rgba(32,31,31,0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(195,244,0,0.07);
+  }
+  .glass-card {
+    background: rgba(32,31,31,0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 20px;
+  }
+  .scroll-x {
+    display: flex; overflow-x: auto; gap: 12px;
+    padding: 4px 20px 12px;
+    -ms-overflow-style: none; scrollbar-width: none;
+  }
+  .scroll-x::-webkit-scrollbar { display: none; }
+  .chip-active {
+    background: #c3f400; color: #283500;
+    font-weight: 700; border: none;
+    box-shadow: 0 0 12px rgba(195,244,0,0.35);
+  }
+  .chip-inactive {
+    background: rgba(55,72,91,0.4); color: #e5e2e1;
+    border: 1px solid rgba(68,73,51,0.5);
+  }
+  .chip-inactive:hover { background: rgba(55,72,91,0.7); }
+  .venue-img { transition: transform 0.5s ease; }
+  .venue-card:hover .venue-img { transform: scale(1.04); }
+  .badge-verified {
+    background: rgba(78,173,141,0.9);
+    color: #fff; font-size: 10px; font-weight: 700;
+    padding: 3px 8px; border-radius: 9999px;
+    display: flex; align-items: center; gap: 3px;
+  }
+  .badge-brand {
+    background: rgba(195,244,0,0.15); color: #c3f400;
+    border: 1px solid rgba(195,244,0,0.3);
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 9999px;
+  }
+  .badge-teal {
+    background: rgba(78,173,141,0.15); color: #4ead8d;
+    border: 1px solid rgba(78,173,141,0.3);
+    font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 9999px;
+  }
+  .sort-pill {
+    font-size: 12px; font-weight: 600; padding: 5px 12px;
+    border-radius: 9999px; cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .sort-active   { background: #c3f400; color: #283500; }
+  .sort-inactive { background: rgba(42,42,42,0.7); color: #c4c9ac;
+                   border: 1px solid rgba(68,73,51,0.4); }
+  .sort-inactive:hover { border-color: rgba(195,244,0,0.3); color: #e5e2e1; }
+  .bottom-nav {
+    background: rgba(19,19,19,0.92);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-top: 1px solid rgba(68,73,51,0.35);
+  }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.5; transform:scale(.85); }
+  }
+  .amenity-pill {
+    background: rgba(42,42,42,0.7);
+    border: 1px solid rgba(68,73,51,0.4);
+    color: #c4c9ac; font-size: 11px; font-weight: 500;
+    padding: 3px 10px; border-radius: 9999px;
+    display: flex; align-items: center; gap: 4px;
+  }
+</style>
+</head>
+<body class="text-on-surface pb-24 antialiased">
+
+<!-- ═══ TOP APP BAR ═══════════════════════════════════════════════════════════ -->
+<header class="fixed top-0 w-full z-50" style="background:rgba(19,19,19,0.85);backdrop-filter:blur(24px);border-bottom:1px solid rgba(68,73,51,0.3)">
+  <div class="flex items-center justify-between px-5 h-[56px]">
+    <!-- Back + Title -->
+    <div class="flex items-center gap-3">
+      <button class="w-9 h-9 flex items-center justify-center rounded-full"
+              style="background:rgba(42,42,42,0.7);border:1px solid rgba(255,255,255,0.08)">
+        <span class="material-symbols-outlined text-[20px] text-on-surface-var">arrow_back</span>
+      </button>
+      <span class="font-display text-[20px] font-bold italic text-white tracking-tight">Venues</span>
+    </div>
+    <!-- Location -->
+    <button class="flex items-center gap-1 px-3 py-1.5 rounded-full"
+            style="background:rgba(42,42,42,0.5);border:1px solid rgba(68,73,51,0.4)">
+      <span class="material-symbols-outlined text-[14px] text-brand">location_on</span>
+      <span class="text-[13px] font-medium text-on-surface">JP Nagar</span>
+      <span class="material-symbols-outlined text-[14px] text-on-surface-var">expand_more</span>
+    </button>
+    <!-- Notification -->
+    <button class="relative w-9 h-9 flex items-center justify-center rounded-full"
+            style="background:rgba(42,42,42,0.7);border:1px solid rgba(255,255,255,0.08)">
+      <span class="material-symbols-outlined text-[20px] text-on-surface-var">notifications</span>
+      <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-brand"></span>
+    </button>
+  </div>
+</header>
+
+<!-- ═══ MAIN ══════════════════════════════════════════════════════════════════ -->
+<main class="pt-[56px]">
+
+  <!-- ── SEARCH + FILTERS ──────────────────────────────────────────────────── -->
+  <section class="px-5 pt-4 pb-2 space-y-3">
+    <!-- Search -->
+    <div class="relative group">
+      <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-var group-focus-within:text-brand transition-colors">search</span>
+      <input type="text"
+             placeholder="Search arenas, courts, fields..."
+             class="w-full h-12 pl-11 pr-11 rounded-2xl text-[14px] text-on-surface placeholder-on-surface-var outline-none transition-all"
+             style="background:rgba(32,31,31,0.7);border:1px solid rgba(68,73,51,0.4);"/>
+      <button class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full"
+              style="background:rgba(55,72,91,0.5)">
+        <span class="material-symbols-outlined text-[16px] text-on-surface-var">tune</span>
+      </button>
+    </div>
+
+    <!-- Sport chips -->
+    <div class="flex gap-2 overflow-x-auto pb-1" style="-ms-overflow-style:none;scrollbar-width:none">
+      <button class="chip-active flex-shrink-0 text-[12px] font-bold px-4 py-1.5 rounded-full">All</button>
+      <button class="chip-inactive flex-shrink-0 text-[12px] px-4 py-1.5 rounded-full">Football</button>
+      <button class="chip-inactive flex-shrink-0 text-[12px] px-4 py-1.5 rounded-full">Cricket</button>
+      <button class="chip-inactive flex-shrink-0 text-[12px] px-4 py-1.5 rounded-full">Badminton</button>
+      <button class="chip-inactive flex-shrink-0 text-[12px] px-4 py-1.5 rounded-full">Basketball</button>
+      <button class="chip-inactive flex-shrink-0 text-[12px] px-4 py-1.5 rounded-full">Tennis</button>
+      <button class="chip-inactive flex-shrink-0 text-[12px] px-4 py-1.5 rounded-full">Squash</button>
+    </div>
+
+    <!-- Sort + View Toggle -->
+    <div class="flex items-center gap-2">
+      <div class="flex gap-2 overflow-x-auto flex-1" style="-ms-overflow-style:none;scrollbar-width:none">
+        <button class="sort-pill sort-active flex-shrink-0">Nearest</button>
+        <button class="sort-pill sort-inactive flex-shrink-0">Top Rated</button>
+        <button class="sort-pill sort-inactive flex-shrink-0">Price ↑</button>
+        <button class="sort-pill sort-inactive flex-shrink-0">Availability</button>
+      </div>
+      <!-- List / Map toggle -->
+      <div class="flex flex-shrink-0 rounded-xl overflow-hidden" style="border:1px solid rgba(68,73,51,0.4)">
+        <button class="w-9 h-9 flex items-center justify-center" style="background:#c3f400">
+          <span class="material-symbols-outlined text-[18px]" style="color:#283500">list</span>
+        </button>
+        <button class="w-9 h-9 flex items-center justify-center" style="background:rgba(42,42,42,0.7)">
+          <span class="material-symbols-outlined text-[18px] text-on-surface-var">map</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── OPEN NOW STRIP ────────────────────────────────────────────────────── -->
+  <section class="px-5 mb-4">
+    <div class="rounded-2xl px-4 py-3 flex items-center gap-4" style="background:rgba(32,31,31,0.55);border:1px solid rgba(255,255,255,0.06)">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-brand pulse"></span>
+        <span class="text-[13px] font-semibold text-brand">Open Now</span>
+      </div>
+      <span class="w-px h-5" style="background:rgba(68,73,51,0.5)"></span>
+      <span class="text-[12px] text-on-surface-var">14 venues available</span>
+      <span class="w-px h-5" style="background:rgba(68,73,51,0.5)"></span>
+      <span class="text-[12px] text-teal">Slots from ₹200</span>
+    </div>
+  </section>
+
+  <!-- ── FEATURED VENUES (horizontal scroll) ──────────────────────────────── -->
+  <section class="mb-6">
+    <div class="flex items-center justify-between px-5 mb-3">
+      <h2 class="font-display text-[22px] font-bold italic text-white">Featured Venues</h2>
+      <a href="#" class="text-[13px] font-semibold text-brand flex items-center gap-0.5">
+        View All <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+      </a>
+    </div>
+    <div class="scroll-x">
+
+      <!-- Featured 1 -->
+      <div class="venue-card flex-shrink-0 w-[300px] rounded-3xl overflow-hidden relative cursor-pointer" style="height:180px">
+        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhg-fB4M-gTxxIiIJ-sZkcZZyCYqlZjtFcx0MmuaSSH9fYehySzb_DeKJoPZHfBB6EvYtLT_QJhPw37v8CQbntV1XxuZEFn4DDwCqicM89HZkqfwt4J-fw8T0Vq-8iPsrAGEsd3CfGmGnph91FeE5uFL79C5uUm94RNmmoy2XZ3eW4mlpYgBtyE_FiBzb8dMCyZrGSt_wadz8yYcgH87wZuBZxUeImiy-hSLv-Z_kPn-2xydRFMEH5ooM_SgEE9DMAlVKZTqi1Pyo"
+             alt="Arena" class="venue-img absolute inset-0 w-full h-full object-cover"/>
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(10,10,10,.95) 0%,rgba(10,10,10,.3) 55%,transparent 100%)"></div>
+        <div class="absolute top-3 left-3 badge-verified">
+          <span class="material-symbols-outlined text-[11px]" style="font-variation-settings:'FILL' 1">verified</span> Verified
+        </div>
+        <div class="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-bold" style="background:rgba(195,244,0,0.9);color:#283500">
+          <span class="material-symbols-outlined text-[12px]" style="font-variation-settings:'FILL' 1">star</span> 4.9
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 p-4">
+          <p class="font-display text-[20px] font-bold italic text-white leading-tight">The Apex Arena</p>
+          <div class="flex items-center justify-between mt-1">
+            <div class="flex items-center gap-1 text-on-surface-var text-[11px]">
+              <span class="material-symbols-outlined text-[12px]">location_on</span>
+              <span>Koramangala · 2.4 km</span>
+            </div>
+            <span class="text-[13px] font-bold text-brand">₹85/hr</span>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="amenity-pill">5v5 Turf</span>
+            <span class="amenity-pill">Indoor</span>
+            <span class="amenity-pill">Floodlit</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Featured 2 -->
+      <div class="venue-card flex-shrink-0 w-[300px] rounded-3xl overflow-hidden relative cursor-pointer" style="height:180px">
+        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDr_7ZPbQbYtJkE0AulB-ax1YXPJDhlE7U6ZQ1ABeu1VAI1_gezs5VzzTLIHFuUvLwWqJYgY_kNe05WKrkdplrLYFSuJ2RpSjy9Gx5CN-JFUP5FvTO82yupoJ6_t9O9NcbIXQ-8-pFigWwzoNkMA0iKqSskAOGdwGaY6KOZ1IJ3zTfhU9poPwclgltGDEKXhAiEgZvxl5l0iYBbdlCXYVGdaWapIT2pwthcp0zwpUZeycN52ru_Gpm87fjgLfS37UxwmyEEKJ5mJxE"
+             alt="Court" class="venue-img absolute inset-0 w-full h-full object-cover"/>
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(10,10,10,.95) 0%,rgba(10,10,10,.3) 55%,transparent 100%)"></div>
+        <div class="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-bold" style="background:rgba(195,244,0,0.9);color:#283500">
+          <span class="material-symbols-outlined text-[12px]" style="font-variation-settings:'FILL' 1">star</span> 4.7
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 p-4">
+          <p class="font-display text-[20px] font-bold italic text-white leading-tight">City Hoops Center</p>
+          <div class="flex items-center justify-between mt-1">
+            <div class="flex items-center gap-1 text-on-surface-var text-[11px]">
+              <span class="material-symbols-outlined text-[12px]">location_on</span>
+              <span>Indiranagar · 3.8 km</span>
+            </div>
+            <span class="text-[13px] font-bold text-brand">₹60/hr</span>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="amenity-pill">Hardwood</span>
+            <span class="amenity-pill">Air Con</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Featured 3 -->
+      <div class="venue-card flex-shrink-0 w-[300px] rounded-3xl overflow-hidden relative cursor-pointer" style="height:180px">
+        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWIxYDwU8qL1mCN4_jiRMXxU2ySX0aujw8Y69akGHYPBtkJJwGfLNP-_o8F8K2tCYr_k6600NkXJE4OSFwycSy1jKNidzvNUqdNaK6jp7Ty7899Vpt8PdyVwdhMHx4oIQab9lswV9TnTDPWP479NT1zoUQIG9b3KeSKb5poV7CWHtX-dTVUuEF3re92473OfnmTiZZpHuT6sZStjjDPBAfPmcE_rNu8ouXhXDRcpnlOebdb3O25Qq89j_aal4cQpNsWyLU4e-19Z8"
+             alt="Track" class="venue-img absolute inset-0 w-full h-full object-cover"/>
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(10,10,10,.95) 0%,rgba(10,10,10,.3) 55%,transparent 100%)"></div>
+        <div class="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-bold" style="background:rgba(195,244,0,0.9);color:#283500">
+          <span class="material-symbols-outlined text-[12px]" style="font-variation-settings:'FILL' 1">star</span> 4.5
+        </div>
+        <div class="absolute bottom-0 left-0 right-0 p-4">
+          <p class="font-display text-[20px] font-bold italic text-white leading-tight">Metro Athletics</p>
+          <div class="flex items-center justify-between mt-1">
+            <div class="flex items-center gap-1 text-on-surface-var text-[11px]">
+              <span class="material-symbols-outlined text-[12px]">location_on</span>
+              <span>HSR Layout · 5.1 km</span>
+            </div>
+            <span class="text-[13px] font-bold text-brand">₹45/hr</span>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="amenity-pill">Track</span>
+            <span class="amenity-pill">Outdoor</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── VENUES NEAR YOU (vertical list) ──────────────────────────────────── -->
+  <section class="px-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display text-[22px] font-bold italic text-white">Venues Near You</h2>
+      <div class="flex items-center gap-1 text-[12px] text-on-surface-var">
+        <span class="material-symbols-outlined text-[14px]">near_me</span>
+        <span>Within 6 km</span>
+      </div>
+    </div>
+    <div class="space-y-3">
+
+      <!-- Venue Row 1 -->
+      <div class="venue-card glass-card overflow-hidden cursor-pointer active:scale-[0.99] transition-transform">
+        <div class="flex">
+          <!-- Thumb -->
+          <div class="relative flex-shrink-0 w-[120px]" style="height:130px;overflow:hidden;border-radius:20px 0 0 20px">
+            <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuAhg-fB4M-gTxxIiIJ-sZkcZZyCYqlZjtFcx0MmuaSSH9fYehySzb_DeKJoPZHfBB6EvYtLT_QJhPw37v8CQbntV1XxuZEFn4DDwCqicM89HZkqfwt4J-fw8T0Vq-8iPsrAGEsd3CfGmGnph91FeE5uFL79C5uUm94RNmmoy2XZ3eW4mlpYgBtyE_FiBzb8dMCyZrGSt_wadz8yYcgH87wZuBZxUeImiy-hSLv-Z_kPn-2xydRFMEH5ooM_SgEE9DMAlVKZTqi1Pyo"
+                 alt="Venue" class="venue-img w-full h-full object-cover"/>
+            <div class="absolute top-2 left-2 badge-verified">
+              <span class="material-symbols-outlined text-[10px]" style="font-variation-settings:'FILL' 1">verified</span>
+            </div>
+          </div>
+          <!-- Info -->
+          <div class="flex-1 p-3 flex flex-col justify-between min-w-0">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-[15px] font-semibold text-on-surface leading-tight">Feather Touch Arena</p>
+                <div class="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-full" style="background:rgba(195,244,0,0.12);border:1px solid rgba(195,244,0,0.25)">
+                  <span class="material-symbols-outlined text-[11px] text-brand" style="font-variation-settings:'FILL' 1">star</span>
+                  <span class="text-[11px] font-bold text-brand">4.5</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-on-surface-var mt-0.5">Badminton · Football</p>
+              <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">location_on</span>
+                <span class="truncate">HBL, 4th Main, Indiranagar</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <span class="amenity-pill">Floodlit</span>
+                <span class="amenity-pill">Parking</span>
+                <span class="amenity-pill">Changing</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-2">
+              <div>
+                <span class="text-[10px] text-on-surface-var">From </span>
+                <span class="text-[14px] font-bold text-brand">₹250</span>
+                <span class="text-[10px] text-on-surface-var">/hr</span>
+              </div>
+              <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">near_me</span>
+                <span>1.7 km</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Book bar -->
+        <div class="flex items-center justify-between px-3 pb-3 pt-1 gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-teal pulse"></span>
+            <span class="text-[11px] text-teal font-semibold">Open · Closes 11 PM</span>
+          </div>
+          <button class="px-4 py-1.5 rounded-xl text-[12px] font-bold" style="background:#c3f400;color:#283500;box-shadow:0 0 10px rgba(195,244,0,0.3)">
+            Book Slot
+          </button>
+        </div>
+      </div>
+
+      <!-- Venue Row 2 -->
+      <div class="venue-card glass-card overflow-hidden cursor-pointer active:scale-[0.99] transition-transform">
+        <div class="flex">
+          <div class="relative flex-shrink-0 w-[120px]" style="height:130px;overflow:hidden;border-radius:20px 0 0 20px;background:linear-gradient(135deg,#1B3E6B,#0f2444)">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="material-symbols-outlined text-[48px]" style="color:rgba(255,255,255,0.15);font-variation-settings:'FILL' 1">stadium</span>
+            </div>
+          </div>
+          <div class="flex-1 p-3 flex flex-col justify-between min-w-0">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-[15px] font-semibold text-on-surface leading-tight">ProSport Complex</p>
+                <div class="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-full" style="background:rgba(195,244,0,0.12);border:1px solid rgba(195,244,0,0.25)">
+                  <span class="material-symbols-outlined text-[11px] text-brand" style="font-variation-settings:'FILL' 1">star</span>
+                  <span class="text-[11px] font-bold text-brand">4.3</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-on-surface-var mt-0.5">Cricket · Basketball · Tennis</p>
+              <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">location_on</span>
+                <span class="truncate">Koramangala, Bangalore</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <span class="amenity-pill">Air Con</span>
+                <span class="amenity-pill">Café</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-2">
+              <div>
+                <span class="text-[10px] text-on-surface-var">From </span>
+                <span class="text-[14px] font-bold text-brand">₹400</span>
+                <span class="text-[10px] text-on-surface-var">/hr</span>
+              </div>
+              <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">near_me</span>
+                <span>2.3 km</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-3 pb-3 pt-1 gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-teal pulse"></span>
+            <span class="text-[11px] text-teal font-semibold">Open · Closes 10 PM</span>
+          </div>
+          <button class="px-4 py-1.5 rounded-xl text-[12px] font-bold" style="background:#c3f400;color:#283500;box-shadow:0 0 10px rgba(195,244,0,0.3)">
+            Book Slot
+          </button>
+        </div>
+      </div>
+
+      <!-- Venue Row 3 -->
+      <div class="venue-card glass-card overflow-hidden cursor-pointer active:scale-[0.99] transition-transform">
+        <div class="flex">
+          <div class="relative flex-shrink-0 w-[120px]" style="height:130px;overflow:hidden;border-radius:20px 0 0 20px;background:linear-gradient(135deg,#3D1A6B,#261044)">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="material-symbols-outlined text-[48px]" style="color:rgba(255,255,255,0.15);font-variation-settings:'FILL' 1">sports_tennis</span>
+            </div>
+          </div>
+          <div class="flex-1 p-3 flex flex-col justify-between min-w-0">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-[15px] font-semibold text-on-surface leading-tight">City Tennis Club</p>
+                <div class="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-full" style="background:rgba(195,244,0,0.12);border:1px solid rgba(195,244,0,0.25)">
+                  <span class="material-symbols-outlined text-[11px] text-brand" style="font-variation-settings:'FILL' 1">star</span>
+                  <span class="text-[11px] font-bold text-brand">4.7</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-on-surface-var mt-0.5">Tennis · Squash</p>
+              <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">location_on</span>
+                <span class="truncate">MG Road, Bangalore</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <span class="amenity-pill">Pro Courts</span>
+                <span class="amenity-pill">Coaching</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-2">
+              <div>
+                <span class="text-[10px] text-on-surface-var">From </span>
+                <span class="text-[14px] font-bold text-brand">₹350</span>
+                <span class="text-[10px] text-on-surface-var">/hr</span>
+              </div>
+              <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">near_me</span>
+                <span>3.5 km</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-3 pb-3 pt-1 gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full" style="background:#ef9a9a;animation:pulse 2s ease-in-out infinite"></span>
+            <span class="text-[11px] font-semibold" style="color:#ef9a9a">Closing · 8 PM</span>
+          </div>
+          <button class="px-4 py-1.5 rounded-xl text-[12px] font-bold" style="background:#c3f400;color:#283500;box-shadow:0 0 10px rgba(195,244,0,0.3)">
+            Book Slot
+          </button>
+        </div>
+      </div>
+
+      <!-- Venue Row 4 -->
+      <div class="venue-card glass-card overflow-hidden cursor-pointer active:scale-[0.99] transition-transform">
+        <div class="flex">
+          <div class="relative flex-shrink-0 w-[120px]" style="height:130px;overflow:hidden;border-radius:20px 0 0 20px;background:linear-gradient(135deg,#6B1A1A,#440f0f)">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <span class="material-symbols-outlined text-[48px]" style="color:rgba(255,255,255,0.15);font-variation-settings:'FILL' 1">sports_cricket</span>
+            </div>
+          </div>
+          <div class="flex-1 p-3 flex flex-col justify-between min-w-0">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-[15px] font-semibold text-on-surface leading-tight">Green Field Box</p>
+                <div class="flex items-center gap-1 flex-shrink-0 px-1.5 py-0.5 rounded-full" style="background:rgba(195,244,0,0.12);border:1px solid rgba(195,244,0,0.25)">
+                  <span class="material-symbols-outlined text-[11px] text-brand" style="font-variation-settings:'FILL' 1">star</span>
+                  <span class="text-[11px] font-bold text-brand">4.1</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-on-surface-var mt-0.5">Box Cricket · Football</p>
+              <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">location_on</span>
+                <span class="truncate">Whitefield, Bangalore</span>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mt-2">
+                <span class="amenity-pill">Floodlit</span>
+                <span class="amenity-pill">Parking</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-2">
+              <div>
+                <span class="text-[10px] text-on-surface-var">From </span>
+                <span class="text-[14px] font-bold text-brand">₹200</span>
+                <span class="text-[10px] text-on-surface-var">/hr</span>
+              </div>
+              <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+                <span class="material-symbols-outlined text-[12px]">near_me</span>
+                <span>4.0 km</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between px-3 pb-3 pt-1 gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-teal pulse"></span>
+            <span class="text-[11px] text-teal font-semibold">Open · Closes midnight</span>
+          </div>
+          <button class="px-4 py-1.5 rounded-xl text-[12px] font-bold" style="background:#c3f400;color:#283500;box-shadow:0 0 10px rgba(195,244,0,0.3)">
+            Book Slot
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── POPULAR THIS WEEKEND ──────────────────────────────────────────────── -->
+  <section class="mb-6">
+    <div class="flex items-center justify-between px-5 mb-3">
+      <h2 class="font-display text-[22px] font-bold italic text-white">Popular This Weekend</h2>
+      <a href="#" class="text-[13px] font-semibold text-brand flex items-center gap-0.5">
+        View All <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+      </a>
+    </div>
+    <div class="scroll-x">
+
+      <!-- Weekend card 1 -->
+      <div class="flex-shrink-0 w-[200px] glass-card overflow-hidden cursor-pointer" style="border-radius:20px">
+        <div class="relative h-[110px]" style="background:linear-gradient(135deg,#1A5C50,#0f3d34)">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[48px]" style="color:rgba(195,244,0,0.2);font-variation-settings:'FILL' 1">sports_soccer</span>
+          </div>
+          <div class="absolute top-2 right-2 badge-brand">Booked 12×</div>
+        </div>
+        <div class="p-3">
+          <p class="text-[13px] font-semibold text-on-surface">Turf Zone Elite</p>
+          <p class="text-[11px] text-on-surface-var mt-0.5">Football · 5-a-side</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[13px] font-bold text-brand">₹300/hr</span>
+            <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[11px]" style="font-variation-settings:'FILL' 1">star</span>
+              <span>4.8</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekend card 2 -->
+      <div class="flex-shrink-0 w-[200px] glass-card overflow-hidden cursor-pointer" style="border-radius:20px">
+        <div class="relative h-[110px]" style="background:linear-gradient(135deg,#1B3E6B,#0f2444)">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[48px]" style="color:rgba(182,200,223,0.2);font-variation-settings:'FILL' 1">sports_basketball</span>
+          </div>
+          <div class="absolute top-2 right-2 badge-teal">Trending</div>
+        </div>
+        <div class="p-3">
+          <p class="text-[13px] font-semibold text-on-surface">Slam Dunk Arena</p>
+          <p class="text-[11px] text-on-surface-var mt-0.5">Basketball · Full Court</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[13px] font-bold text-brand">₹500/hr</span>
+            <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[11px]" style="font-variation-settings:'FILL' 1">star</span>
+              <span>4.6</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekend card 3 -->
+      <div class="flex-shrink-0 w-[200px] glass-card overflow-hidden cursor-pointer" style="border-radius:20px">
+        <div class="relative h-[110px]" style="background:linear-gradient(135deg,#3D1A6B,#261044)">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[48px]" style="color:rgba(206,147,216,0.2);font-variation-settings:'FILL' 1">sports_tennis</span>
+          </div>
+          <div class="absolute top-2 right-2 badge-brand">New</div>
+        </div>
+        <div class="p-3">
+          <p class="text-[13px] font-semibold text-on-surface">Ace Tennis Club</p>
+          <p class="text-[11px] text-on-surface-var mt-0.5">Tennis · Clay Courts</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[13px] font-bold text-brand">₹450/hr</span>
+            <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[11px]" style="font-variation-settings:'FILL' 1">star</span>
+              <span>4.9</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekend card 4 -->
+      <div class="flex-shrink-0 w-[200px] glass-card overflow-hidden cursor-pointer" style="border-radius:20px">
+        <div class="relative h-[110px]" style="background:linear-gradient(135deg,#6B1A1A,#440f0f)">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[48px]" style="color:rgba(239,154,154,0.2);font-variation-settings:'FILL' 1">sports_cricket</span>
+          </div>
+          <div class="absolute top-2 right-2 badge-teal">Top Rated</div>
+        </div>
+        <div class="p-3">
+          <p class="text-[13px] font-semibold text-on-surface">Premier Cricket Box</p>
+          <p class="text-[11px] text-on-surface-var mt-0.5">Box Cricket · 9-a-side</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-[13px] font-bold text-brand">₹180/hr</span>
+            <div class="flex items-center gap-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[11px]" style="font-variation-settings:'FILL' 1">star</span>
+              <span>4.8</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── UPCOMING EVENTS AT VENUES ─────────────────────────────────────────── -->
+  <section class="px-5 mb-6">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display text-[22px] font-bold italic text-white">Events at Venues</h2>
+      <a href="#" class="text-[13px] font-semibold text-brand flex items-center gap-0.5">
+        View All <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+      </a>
+    </div>
+    <div class="space-y-3">
+
+      <!-- Event 1 -->
+      <div class="rounded-2xl overflow-hidden flex gap-0 cursor-pointer" style="background:rgba(32,31,31,0.55);border:1px solid rgba(255,255,255,0.06)">
+        <!-- Date block -->
+        <div class="flex-shrink-0 w-16 flex flex-col items-center justify-center py-4" style="background:linear-gradient(135deg,#c3f400,#abd600)">
+          <span class="text-[22px] font-bold leading-none" style="color:#283500;font-family:'Barlow Condensed',sans-serif">18</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider" style="color:#3c4d00">May</span>
+          <span class="text-[9px] font-semibold mt-0.5" style="color:#3c4d00">Sat</span>
+        </div>
+        <div class="flex-1 p-3 flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-[14px] font-semibold text-on-surface">City League 5-a-Side</p>
+              <span class="badge-brand flex-shrink-0">Open</span>
+            </div>
+            <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[12px]">stadium</span>
+              <span>The Apex Arena · Koramangala</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 mt-2">
+            <span class="text-[11px] text-teal font-semibold">₹500 entry</span>
+            <span class="text-[11px] text-on-surface-var">24/32 registered</span>
+            <span class="text-[11px] text-on-surface-var">8:00 AM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event 2 -->
+      <div class="rounded-2xl overflow-hidden flex gap-0 cursor-pointer" style="background:rgba(32,31,31,0.55);border:1px solid rgba(255,255,255,0.06)">
+        <div class="flex-shrink-0 w-16 flex flex-col items-center justify-center py-4" style="background:linear-gradient(135deg,#1B3E6B,#0f2444)">
+          <span class="text-[22px] font-bold leading-none text-white" style="font-family:'Barlow Condensed',sans-serif">25</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider" style="color:#b6c8df">May</span>
+          <span class="text-[9px] font-semibold mt-0.5" style="color:#b6c8df">Sun</span>
+        </div>
+        <div class="flex-1 p-3 flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-[14px] font-semibold text-on-surface">Summer Box Cricket Cup</p>
+              <span class="badge-brand flex-shrink-0">Open</span>
+            </div>
+            <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[12px]">stadium</span>
+              <span>Green Field Box · Whitefield</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 mt-2">
+            <span class="text-[11px] text-teal font-semibold">₹300/team</span>
+            <span class="text-[11px] text-on-surface-var">8/16 teams</span>
+            <span class="text-[11px] text-on-surface-var">7:00 AM</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Event 3 -->
+      <div class="rounded-2xl overflow-hidden flex gap-0 cursor-pointer" style="background:rgba(32,31,31,0.55);border:1px solid rgba(255,255,255,0.06)">
+        <div class="flex-shrink-0 w-16 flex flex-col items-center justify-center py-4" style="background:linear-gradient(135deg,#3D1A6B,#261044)">
+          <span class="text-[22px] font-bold leading-none text-white" style="font-family:'Barlow Condensed',sans-serif">01</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider" style="color:#ce93d8">Jun</span>
+          <span class="text-[9px] font-semibold mt-0.5" style="color:#ce93d8">Sun</span>
+        </div>
+        <div class="flex-1 p-3 flex flex-col justify-between">
+          <div>
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-[14px] font-semibold text-on-surface">3×3 Hoops Classic</p>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style="background:rgba(255,180,171,0.12);color:#ef9a9a;border:1px solid rgba(255,180,171,0.25)">Filling</span>
+            </div>
+            <div class="flex items-center gap-1 mt-1 text-[11px] text-on-surface-var">
+              <span class="material-symbols-outlined text-[12px]">stadium</span>
+              <span>ProSport Complex · Koramangala</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 mt-2">
+            <span class="text-[11px] text-teal font-semibold">₹200/player</span>
+            <span class="text-[11px]" style="color:#ef9a9a">2 spots left</span>
+            <span class="text-[11px] text-on-surface-var">9:00 AM</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── REGISTER YOUR VENUE ───────────────────────────────────────────────── -->
+  <section class="px-5 mb-6">
+    <div class="rounded-2xl p-5 flex items-center justify-between gap-4 relative overflow-hidden"
+         style="background:linear-gradient(135deg,rgba(195,244,0,0.12) 0%,rgba(78,173,141,0.1) 100%);border:1px solid rgba(195,244,0,0.18)">
+      <div style="position:absolute;inset:0;opacity:.04;background:repeating-linear-gradient(45deg,#c3f400,#c3f400 1px,transparent 1px,transparent 8px)"></div>
+      <div class="relative">
+        <p class="text-[15px] font-bold text-on-surface">Own a venue or facility?</p>
+        <p class="text-[12px] text-on-surface-var mt-0.5">List it on FieldUp and start accepting bookings</p>
+      </div>
+      <button class="flex-shrink-0 relative border text-[12px] font-bold px-4 py-2 rounded-xl whitespace-nowrap" style="border-color:#c3f400;color:#c3f400">
+        List Venue
+      </button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ═══ BOTTOM NAV ════════════════════════════════════════════════════════════ -->
+<nav class="bottom-nav fixed bottom-0 w-full z-50 flex justify-around items-center px-2 pt-3 pb-5">
+  <button class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-on-surface-var">
+    <span class="material-symbols-outlined text-[22px]">home</span>
+    <span class="text-[10px] font-semibold uppercase tracking-wider">Home</span>
+  </button>
+  <button class="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-2xl" style="background:rgba(195,244,0,0.12);box-shadow:0 0 12px rgba(195,244,0,0.15)">
+    <span class="material-symbols-outlined text-[22px] text-brand" style="font-variation-settings:'FILL' 1">stadium</span>
+    <span class="text-[10px] font-bold uppercase tracking-wider text-brand">Venues</span>
+  </button>
+  <button class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-on-surface-var">
+    <span class="material-symbols-outlined text-[22px]">sports</span>
+    <span class="text-[10px] font-semibold uppercase tracking-wider">Scoring</span>
+  </button>
+  <button class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-on-surface-var">
+    <span class="material-symbols-outlined text-[22px]">people</span>
+    <span class="text-[10px] font-semibold uppercase tracking-wider">Games</span>
+  </button>
+  <button class="flex flex-col items-center gap-0.5 px-3 py-1.5 text-on-surface-var">
+    <span class="material-symbols-outlined text-[22px]">account_circle</span>
+    <span class="text-[10px] font-semibold uppercase tracking-wider">Profile</span>
+  </button>
+</nav>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+name: fieldup_supabase_client
+description: Shared Supabase client wrapper for FieldUp apps.
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  supabase_flutter: ^2.5.3
+
+flutter:
+  uses-material-design: true
