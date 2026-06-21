@@ -69,6 +69,12 @@ class ScoringScreen extends StatefulWidget {
 class _ScoringScreenState extends State<ScoringScreen> {
   _SportChoice? _chosen;
   _MatchConfig? _config;
+  bool _courtAssigned = false;
+
+  bool get _needsCourtAssignment =>
+      _chosen == _SportChoice.badminton ||
+      _chosen == _SportChoice.paddleball ||
+      _chosen == _SportChoice.pickleball;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +90,14 @@ class _ScoringScreenState extends State<ScoringScreen> {
         onBack: () => setState(() => _chosen = null),
       );
     }
+    if (_needsCourtAssignment && !_courtAssigned) {
+      return _CourtAssignmentScreen(
+        config: _config!,
+        sport: _chosen!,
+        onStart: () => setState(() => _courtAssigned = true),
+        onBack: () => setState(() => _config = null),
+      );
+    }
     return _buildScorer();
   }
 
@@ -92,12 +106,17 @@ class _ScoringScreenState extends State<ScoringScreen> {
     final onExit = () => setState(() {
           _chosen = null;
           _config = null;
+          _courtAssigned = false;
         });
     switch (_chosen!) {
       case _SportChoice.cricket:
         return _CricketScorer(config: cfg, onExit: onExit);
       case _SportChoice.badminton:
         return _BadmintonScorer(config: cfg, onExit: onExit);
+      case _SportChoice.paddleball:
+        return _PaddleballScorer(config: cfg, onExit: onExit);
+      case _SportChoice.pickleball:
+        return _PickleballScorer(config: cfg, onExit: onExit);
       case _SportChoice.tennis:
         return _TennisScorer(config: cfg, onExit: onExit);
       case _SportChoice.football:
@@ -110,9 +129,315 @@ class _ScoringScreenState extends State<ScoringScreen> {
   }
 }
 
+// ─── Court Assignment Screen ──────────────────────────────────────────────────
+
+class _CourtAssignmentScreen extends StatefulWidget {
+  const _CourtAssignmentScreen({
+    required this.config,
+    required this.sport,
+    required this.onStart,
+    required this.onBack,
+  });
+  final _MatchConfig config;
+  final _SportChoice sport;
+  final VoidCallback onStart;
+  final VoidCallback onBack;
+
+  @override
+  State<_CourtAssignmentScreen> createState() => _CourtAssignmentScreenState();
+}
+
+class _CourtAssignmentScreenState extends State<_CourtAssignmentScreen> {
+  // 4 positions per side (2 rows × 2 cols), null = unassigned
+  final List<String?> _team1Slots = [null, null, null, null];
+  final List<String?> _team2Slots = [null, null, null, null];
+
+  List<String> get _team1Players =>
+      (widget.config.params['team1Players'] as List<String>?) ?? [];
+  List<String> get _team2Players =>
+      (widget.config.params['team2Players'] as List<String>?) ?? [];
+
+  void _assignSlot(List<String?> slots, int index, List<String> players) {
+    final assigned = slots.whereType<String>().toSet();
+    final available = players.where((p) => !assigned.contains(p)).toList();
+    if (available.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F0F0F),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('ASSIGN PLAYER', style: _display(20, color: _kLime)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8, runSpacing: 8,
+              children: available.map((p) => GestureDetector(
+                onTap: () {
+                  setState(() => slots[index] = p);
+                  Navigator.pop(context);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: _kLime.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _kLime.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(p, style: _label(13, color: Colors.white)),
+                ),
+              )).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourtGrid(
+      List<String?> slots, List<String> players, bool isTop) {
+    return Column(
+      children: [
+        // Team label band (Figma: lime/teal band top and bottom)
+        Container(
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _kLime.withValues(alpha: 0.15),
+            border: Border(
+              top: BorderSide(color: _kLime.withValues(alpha: 0.4)),
+              bottom: BorderSide(color: _kLime.withValues(alpha: 0.4)),
+            ),
+          ),
+          child: Text(
+            isTop ? widget.config.team1.toUpperCase() : widget.config.team2.toUpperCase(),
+            style: _label(13, color: _kLime, weight: FontWeight.w700),
+          ),
+        ),
+        // 2×2 grid
+        Row(
+          children: [0, 1].map((col) {
+            return Expanded(
+              child: Column(
+                children: [0, 1].map((row) {
+                  final idx = row * 2 + col;
+                  final name = slots[idx];
+                  return GestureDetector(
+                    onTap: () => _assignSlot(slots, idx, players),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: name != null
+                            ? _kLime.withValues(alpha: 0.12)
+                            : const Color(0xFF7EC8A4).withValues(alpha: 0.15),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      child: Center(
+                        child: name != null
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 36, height: 36,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _kLime.withValues(alpha: 0.2),
+                                      border: Border.all(color: _kLime.withValues(alpha: 0.5)),
+                                    ),
+                                    child: Text(
+                                      name[0].toUpperCase(),
+                                      style: _display(16, color: _kLime),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    name,
+                                    style: _label(11, color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.06),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.add_circle_outline,
+                                            color: Colors.white.withValues(alpha: 0.4), size: 16),
+                                        const SizedBox(width: 6),
+                                        Text('Assign Player',
+                                            style: _label(11,
+                                                color: Colors.white.withValues(alpha: 0.5))),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _kBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top bar
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: widget.onBack,
+                    child: Container(
+                      width: 36, height: 36,
+                      alignment: Alignment.center,
+                      decoration: _glass(radius: 10),
+                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_sportName(widget.sport).toUpperCase(),
+                          style: _display(22, color: _kLime)),
+                      Text('COURT ASSIGNMENT', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text('Match 1', style: _label(12, color: Colors.white.withValues(alpha: 0.3))),
+                ],
+              ),
+            ),
+            // Court
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  color: Colors.white.withValues(alpha: 0.02),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Column(
+                    children: [
+                      Expanded(child: _buildCourtGrid(_team1Slots, _team1Players, true)),
+                      // Net line
+                      Container(
+                        height: 3,
+                        color: Colors.white.withValues(alpha: 0.12),
+                      ),
+                      Expanded(child: _buildCourtGrid(_team2Slots, _team2Players, false)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Bottom bar
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _showRulesSheet(context, widget.sport),
+                      child: Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                          color: Colors.white.withValues(alpha: 0.04),
+                        ),
+                        child: Text('VIEW RULES',
+                            style: _label(14, color: Colors.white, weight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: widget.onStart,
+                      child: Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _kLime,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _kLime.withValues(alpha: 0.35),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            )
+                          ],
+                        ),
+                        child: Text('START GAME',
+                            style: _display(17, color: AppColors.onPrimary)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Sport enum & config ──────────────────────────────────────────────────────
 
-enum _SportChoice { cricket, badminton, tennis, football, basketball, volleyball }
+enum _SportChoice { cricket, badminton, paddleball, pickleball, tennis, football, basketball, volleyball }
+
+// ─── Player entry model ───────────────────────────────────────────────────────
+
+class _PlayerEntry {
+  _PlayerEntry({required this.name, this.skillTier = 'Rookie', this.selected = false});
+  String name;
+  String skillTier;
+  bool selected;
+  static const tiers = ['Rookie', 'Contender', 'Playmaker', 'Competitive', 'Elite'];
+}
 
 class _MatchConfig {
   final String team1;
@@ -135,12 +460,14 @@ class _SportSelectionScreenState extends State<_SportSelectionScreen> {
   _SportChoice? _hovered;
 
   static const _sports = [
-    (choice: _SportChoice.cricket,    label: 'Cricket',    icon: Icons.sports_cricket,    grad: [Color(0xFF1A4A1A), Color(0xFF0D2D0D)]),
-    (choice: _SportChoice.badminton,  label: 'Badminton',  icon: Icons.sports_tennis,     grad: [Color(0xFF0D3B3B), Color(0xFF061E1E)]),
-    (choice: _SportChoice.tennis,     label: 'Tennis',     icon: Icons.sports_tennis,     grad: [Color(0xFF3B3000), Color(0xFF1E1800)]),
-    (choice: _SportChoice.football,   label: 'Football',   icon: Icons.sports_soccer,     grad: [Color(0xFF0D1E3B), Color(0xFF060F1E)]),
-    (choice: _SportChoice.basketball, label: 'Basketball', icon: Icons.sports_basketball, grad: [Color(0xFF3B1A00), Color(0xFF1E0D00)]),
-    (choice: _SportChoice.volleyball, label: 'Volleyball', icon: Icons.sports_volleyball, grad: [Color(0xFF2A0D3B), Color(0xFF160619)]),
+    (choice: _SportChoice.cricket,     label: 'Cricket',     icon: Icons.sports_cricket,    grad: [Color(0xFF1A4A1A), Color(0xFF0D2D0D)]),
+    (choice: _SportChoice.badminton,   label: 'Badminton',   icon: Icons.sports_tennis,     grad: [Color(0xFF0D3B3B), Color(0xFF061E1E)]),
+    (choice: _SportChoice.football,    label: 'Football',    icon: Icons.sports_soccer,     grad: [Color(0xFF0D1E3B), Color(0xFF060F1E)]),
+    (choice: _SportChoice.tennis,      label: 'Tennis',      icon: Icons.sports_tennis,     grad: [Color(0xFF3B3000), Color(0xFF1E1800)]),
+    (choice: _SportChoice.pickleball,  label: 'Pickle Ball', icon: Icons.sports_tennis,     grad: [Color(0xFF1A3B1A), Color(0xFF0D1E0D)]),
+    (choice: _SportChoice.paddleball,  label: 'Paddle Ball', icon: Icons.sports_tennis,     grad: [Color(0xFF3B1A3B), Color(0xFF1E0D1E)]),
+    (choice: _SportChoice.basketball,  label: 'Basketball',  icon: Icons.sports_basketball, grad: [Color(0xFF3B1A00), Color(0xFF1E0D00)]),
+    (choice: _SportChoice.volleyball,  label: 'Volleyball',  icon: Icons.sports_volleyball, grad: [Color(0xFF2A0D3B), Color(0xFF160619)]),
   ];
 
   @override
@@ -309,12 +636,196 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
   int _halfMins = 45;
   bool _singles = true;
 
+  // Player rosters — max 3 per side per Figma spec
+  final List<_PlayerEntry> _team1Players = [];
+  final List<_PlayerEntry> _team2Players = [];
+
   @override
   void dispose() {
     _t1ctrl.dispose();
     _t2ctrl.dispose();
     super.dispose();
   }
+
+  void _showAddPlayerSheet(List<_PlayerEntry> roster) {
+    final nameCtrl = TextEditingController();
+    String selectedTier = 'Rookie';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: Color(0xFF0F0F0F),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ADD PLAYER', style: _display(22, color: _kLime)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Player name',
+                    hintStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white.withValues(alpha: 0.3)),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.04),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _kLime, width: 1.5),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text('SKILL TIER', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _PlayerEntry.tiers.map((t) {
+                    final active = t == selectedTier;
+                    return GestureDetector(
+                      onTap: () => setS(() => selectedTier = t),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: active ? _kLime.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: active ? _kLime.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                        child: Text(t, style: _label(12, color: active ? _kLime : Colors.white.withValues(alpha: 0.5))),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: () {
+                    final name = nameCtrl.text.trim();
+                    if (name.isEmpty) return;
+                    setState(() {
+                      roster.add(_PlayerEntry(name: name, skillTier: selectedTier));
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    height: 52,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _kLime,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('ADD PLAYER', style: _display(17, color: AppColors.onPrimary)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeamRoster(String label, List<_PlayerEntry> roster) {
+    final canAdd = roster.length < 3;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+        const SizedBox(height: 8),
+        ...roster.asMap().entries.map((e) {
+          final i = e.key;
+          final p = e.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: _glass(radius: 12),
+            child: Row(
+              children: [
+                // Avatar circle with initials
+                Container(
+                  width: 38, height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _kLime.withValues(alpha: 0.15),
+                    border: Border.all(color: _kLime.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    p.name.isNotEmpty ? p.name[0].toUpperCase() : '?',
+                    style: _display(16, color: _kLime),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.name, style: _label(13, color: Colors.white, weight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(p.skillTier, style: _label(11, color: _kLime)),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => roster.removeAt(i)),
+                  child: Icon(Icons.close, color: Colors.white.withValues(alpha: 0.3), size: 18),
+                ),
+              ],
+            ),
+          );
+        }),
+        if (canAdd)
+          GestureDetector(
+            onTap: () => _showAddPlayerSheet(roster),
+            child: Container(
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _kLime.withValues(alpha: 0.4),
+                  strokeAlign: BorderSide.strokeAlignInside,
+                ),
+                color: _kLime.withValues(alpha: 0.04),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, color: _kLime, size: 18),
+                  const SizedBox(width: 6),
+                  Text('ADD PLAYERS', style: _label(13, color: _kLime, weight: FontWeight.w700)),
+                ],
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 36,
+            alignment: Alignment.center,
+            child: Text('MAX 3 PLAYERS', style: _label(11, color: Colors.white.withValues(alpha: 0.25))),
+          ),
+      ],
+    );
+  }
+
+  bool get _canStart => _team1Players.isNotEmpty && _team2Players.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -351,39 +862,82 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const SizedBox(height: 12),
+                    // CREATE TEAM section header (Figma)
+                    Row(
+                      children: [
+                        Text('CREATE TEAM', style: _display(20, color: Colors.white)),
+                        const Spacer(),
+                        Icon(Icons.keyboard_arrow_up, color: _kLime, size: 22),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Team 1
+                    Text('Team 1', style: _label(12, color: Colors.white.withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
-                    Text('TEAMS', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
-                    const SizedBox(height: 8),
-                    _InputField(controller: _t1ctrl, hint: 'Team / Player 1'),
-                    const SizedBox(height: 10),
-                    _InputField(controller: _t2ctrl, hint: 'Team / Player 2'),
+                    _InputField(controller: _t1ctrl, hint: 'Team Name'),
+                    const SizedBox(height: 12),
+                    _buildTeamRoster('', _team1Players),
                     const SizedBox(height: 20),
+                    // Team 2
+                    Text('Team 2', style: _label(12, color: Colors.white.withValues(alpha: 0.5))),
+                    const SizedBox(height: 8),
+                    _InputField(controller: _t2ctrl, hint: 'Team Name'),
+                    const SizedBox(height: 12),
+                    _buildTeamRoster('', _team2Players),
+                    const SizedBox(height: 24),
                     ..._sportParams(),
                   ],
                 ),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-              child: GestureDetector(
-                onTap: _submit,
-                child: Container(
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _kLime,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kLime.withValues(alpha: 0.4),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      )
-                    ],
+            // Bottom bar: VIEW RULES + START MATCH (Figma pattern)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.06))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _showRulesSheet(context, widget.sport),
+                      child: Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                          color: Colors.white.withValues(alpha: 0.04),
+                        ),
+                        child: Text('VIEW RULES', style: _label(14, color: Colors.white, weight: FontWeight.w700)),
+                      ),
+                    ),
                   ),
-                  child: Text('BEGIN MATCH →',
-                      style: _display(18, color: AppColors.onPrimary, weight: FontWeight.w800)),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _canStart ? _submit : null,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _canStart ? _kLime : Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: _canStart
+                              ? [BoxShadow(color: _kLime.withValues(alpha: 0.35), blurRadius: 20, offset: const Offset(0, 6))]
+                              : null,
+                        ),
+                        child: Text(
+                          'START MATCH',
+                          style: _display(17,
+                              color: _canStart ? AppColors.onPrimary : Colors.white.withValues(alpha: 0.25)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -405,6 +959,8 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
           ),
         ];
       case _SportChoice.badminton:
+      case _SportChoice.paddleball:
+      case _SportChoice.pickleball:
       case _SportChoice.tennis:
       case _SportChoice.volleyball:
         return [
@@ -415,7 +971,8 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
             selected: 'Best of $_bestOf',
             onSelect: (v) => setState(() => _bestOf = v.contains('3') ? 3 : 5),
           ),
-          if (widget.sport == _SportChoice.badminton || widget.sport == _SportChoice.tennis) ...[
+          if (widget.sport == _SportChoice.badminton || widget.sport == _SportChoice.tennis ||
+              widget.sport == _SportChoice.paddleball || widget.sport == _SportChoice.pickleball) ...[
             const SizedBox(height: 16),
             Text('SINGLES / DOUBLES', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
             const SizedBox(height: 8),
@@ -455,6 +1012,8 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
       case _SportChoice.cricket:
         params['overs'] = _overs;
       case _SportChoice.badminton:
+      case _SportChoice.paddleball:
+      case _SportChoice.pickleball:
       case _SportChoice.tennis:
       case _SportChoice.volleyball:
         params['bestOf'] = _bestOf;
@@ -474,14 +1033,149 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
 
 String _sportName(_SportChoice s) {
   const names = {
-    _SportChoice.cricket: 'Cricket',
-    _SportChoice.badminton: 'Badminton',
-    _SportChoice.tennis: 'Tennis',
-    _SportChoice.football: 'Football',
+    _SportChoice.cricket:    'Cricket',
+    _SportChoice.badminton:  'Badminton',
+    _SportChoice.paddleball: 'Paddle Ball',
+    _SportChoice.pickleball: 'Pickle Ball',
+    _SportChoice.tennis:     'Tennis',
+    _SportChoice.football:   'Football',
     _SportChoice.basketball: 'Basketball',
     _SportChoice.volleyball: 'Volleyball',
   };
   return names[s]!;
+}
+
+// ─── VIEW RULES sheet ─────────────────────────────────────────────────────────
+
+void _showRulesSheet(BuildContext context, _SportChoice sport) {
+  final rules = _sportRules(sport);
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => Container(
+      constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F0F0F),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: _kLime.withValues(alpha: 0.25))),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text(_sportName(sport).toUpperCase(), style: _display(24, color: _kLime)),
+            const Spacer(),
+            Text('RULES', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+          ]),
+          const SizedBox(height: 16),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: rules.map((rule) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        width: 5, height: 5,
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: _kLime),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(rule, style: _label(13, color: Colors.white.withValues(alpha: 0.8))),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+List<String> _sportRules(_SportChoice sport) {
+  switch (sport) {
+    case _SportChoice.cricket:
+      return [
+        'Each team bats once. Select overs before the match.',
+        'A batsman is out if: bowled, caught, LBW, run out, stumped, or hit wicket.',
+        'Wide and no-ball add 1 run and are not counted as a legal delivery.',
+        'Bye and leg-bye count as extras but are legal deliveries.',
+        'Strike rotates on odd runs; ends swap at the end of each over.',
+        'Team with more runs at the end wins. Tied match = Super Over.',
+      ];
+    case _SportChoice.badminton:
+      return [
+        'Best of 3 or 5 games. First to 21 points wins a game (must lead by 2).',
+        'At 20-all, the side that first gains a 2-point lead wins.',
+        'At 29-all, the side that scores the 30th point wins.',
+        'Server rotates when the receiving side wins a rally.',
+        'A toss determines the first server and side of the court.',
+        'Service must be below the waist and travel diagonally.',
+      ];
+    case _SportChoice.paddleball:
+      return [
+        'Played on a smaller court using a solid paddle and depressurised ball.',
+        'Best of 3 or 5 sets. First to 6 games wins a set (must lead by 2).',
+        'At 6-6 a tiebreak is played (first to 7 points, lead by 2).',
+        'Serve must land in the diagonally opposite service box.',
+        'Let serves are replayed. Two consecutive faults lose the point.',
+        'Ball may bounce off the glass walls — walls are in play.',
+      ];
+    case _SportChoice.pickleball:
+      return [
+        'Played on a badminton-sized court with a perforated plastic ball.',
+        'Only the serving team can score. Serve rotates on a side-out.',
+        'Games are played to 11 points — win by 2.',
+        'Serve must be underhand, below the waist, cross-court.',
+        'The non-volley zone (kitchen) extends 7 ft from the net.',
+        'Volleys are not allowed inside the kitchen.',
+      ];
+    case _SportChoice.tennis:
+      return [
+        'Best of 3 or 5 sets. First to 6 games wins a set (lead by 2).',
+        'Points: Love → 15 → 30 → 40. Win the game from 40 (or after deuce).',
+        'Deuce: both at 40. One player must win 2 consecutive points.',
+        'At 6-6 in a set, a tiebreak is played to 7 (lead by 2, max 10 pts).',
+        'Serve: two attempts per point. Foot fault counts as a fault.',
+        'Ball landing on the line is in.',
+      ];
+    case _SportChoice.football:
+      return [
+        'Two halves of equal duration. Team with most goals wins.',
+        'A goal is scored when the ball fully crosses the goal line.',
+        'Offside: attacker is level with or behind the second-last defender.',
+        'Fouls inside the penalty area result in a penalty kick.',
+        'Yellow card = caution. Two yellows = red card = ejection.',
+        'Extra time and penalty shootout decide draws in knockout games.',
+      ];
+    case _SportChoice.basketball:
+      return [
+        'Four quarters. Team with most points wins.',
+        'Field goal = 2 pts. Three-pointer = 3 pts. Free throw = 1 pt.',
+        'Personal foul: illegal contact. 5 fouls = ejection.',
+        'Team foul bonus: from the 5th team foul per quarter, opposing team shoots free throws.',
+        'Shot clock: 24 seconds to attempt a shot.',
+        'Overtime: 5-minute periods until the tie is broken.',
+      ];
+    case _SportChoice.volleyball:
+      return [
+        'Best of 5 sets. First to 25 pts wins a set (lead by 2). Final set to 15 pts.',
+        'Rally scoring: every rally produces a point regardless of who served.',
+        'Each team may touch the ball up to 3 times before sending it over.',
+        'Rotation: teams rotate clockwise after winning back service.',
+        'Libero: specialist defensive player — cannot attack above net height.',
+        'Players must not touch the net during play.',
+      ];
+  }
 }
 
 // ─── Cricket Scorer ───────────────────────────────────────────────────────────
@@ -957,70 +1651,144 @@ class _CricketScorerState extends State<_CricketScorer> {
           children: [
             _ScorerTopBar(sport: 'CRICKET', info: 'TOSS', onExit: widget.onExit),
             Expanded(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 24),
-                    Text('WHO WON THE TOSS?', style: _label(13, color: Colors.white.withValues(alpha: 0.5))),
-                    const SizedBox(height: 16),
+                    // "WHO WON THE TOSS?" — Figma style heading
+                    Text('WHO WON THE TOSS?',
+                        style: _display(22, color: Colors.white)),
+                    const SizedBox(height: 20),
+                    // Team icon cards (Figma: bordered card, circular team logo, team label below)
                     Row(children: [
                       for (final team in [_team1Name, _team2Name]) ...[
-                        Expanded(child: GestureDetector(
-                          onTap: () => setState(() => _tossWinner = team),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            height: 72,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: _tossWinner == team
-                                  ? _kLime.withValues(alpha: 0.12)
-                                  : Colors.white.withValues(alpha: 0.03),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _tossWinner = team),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
                                 color: _tossWinner == team
-                                    ? _kLime.withValues(alpha: 0.6)
-                                    : Colors.white.withValues(alpha: 0.08),
+                                    ? _kLime.withValues(alpha: 0.10)
+                                    : Colors.white.withValues(alpha: 0.03),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: _tossWinner == team
+                                      ? _kLime.withValues(alpha: 0.7)
+                                      : Colors.white.withValues(alpha: 0.08),
+                                  width: _tossWinner == team ? 1.5 : 1,
+                                ),
+                                boxShadow: _tossWinner == team
+                                    ? [BoxShadow(color: _kLime.withValues(alpha: 0.18), blurRadius: 20)]
+                                    : null,
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(team == _team1Name ? 'Team 1' : 'Team 2',
+                                      style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+                                  const SizedBox(height: 12),
+                                  // Circular team logo
+                                  Container(
+                                    width: 56, height: 56,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _tossWinner == team
+                                          ? _kLime.withValues(alpha: 0.2)
+                                          : Colors.white.withValues(alpha: 0.06),
+                                      border: Border.all(
+                                        color: _tossWinner == team
+                                            ? _kLime.withValues(alpha: 0.5)
+                                            : Colors.white.withValues(alpha: 0.12),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      team.isNotEmpty ? team[0].toUpperCase() : '?',
+                                      style: _display(26,
+                                          color: _tossWinner == team
+                                              ? _kLime
+                                              : Colors.white.withValues(alpha: 0.6)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(team,
+                                      style: _label(13,
+                                          color: _tossWinner == team
+                                              ? _kLime
+                                              : Colors.white.withValues(alpha: 0.7),
+                                          weight: FontWeight.w700),
+                                      overflow: TextOverflow.ellipsis),
+                                ],
                               ),
                             ),
-                            child: Text(team.toUpperCase(),
-                                style: _display(18,
-                                    color: _tossWinner == team ? _kLime : Colors.white.withValues(alpha: 0.5))),
                           ),
-                        )),
+                        ),
                         if (team != _team2Name) const SizedBox(width: 12),
                       ],
                     ]),
                     if (_tossWinner.isNotEmpty) ...[
                       const SizedBox(height: 32),
-                      Text('${_tossWinner.toUpperCase()} CHOSE TO…',
-                          style: _label(13, color: Colors.white.withValues(alpha: 0.5))),
-                      const SizedBox(height: 16),
+                      Text('WHAT HAVE THEY DECIDED?',
+                          style: _display(22, color: Colors.white)),
+                      const SizedBox(height: 20),
+                      // Batting / Balling icon cards (Figma style)
                       Row(children: [
                         for (final choice in ['bat', 'bowl']) ...[
-                          Expanded(child: GestureDetector(
-                            onTap: () => setState(() => _tossChoice = choice),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              height: 64,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: _tossChoice == choice
-                                    ? _kLime.withValues(alpha: 0.12)
-                                    : Colors.white.withValues(alpha: 0.03),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _tossChoice = choice),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                decoration: BoxDecoration(
                                   color: _tossChoice == choice
-                                      ? _kLime.withValues(alpha: 0.6)
-                                      : Colors.white.withValues(alpha: 0.08),
+                                      ? _kLime.withValues(alpha: 0.10)
+                                      : Colors.white.withValues(alpha: 0.03),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: _tossChoice == choice
+                                        ? _kLime.withValues(alpha: 0.7)
+                                        : Colors.white.withValues(alpha: 0.08),
+                                    width: _tossChoice == choice ? 1.5 : 1,
+                                  ),
+                                  boxShadow: _tossChoice == choice
+                                      ? [BoxShadow(color: _kLime.withValues(alpha: 0.18), blurRadius: 20)]
+                                      : null,
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Circular icon — teal bg as in Figma
+                                    Container(
+                                      width: 64, height: 64,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _tossChoice == choice
+                                            ? _kLime.withValues(alpha: 0.2)
+                                            : const Color(0xFF1A4A3A).withValues(alpha: 0.6),
+                                      ),
+                                      child: Text(
+                                        choice == 'bat' ? '🏏' : '🎯',
+                                        style: const TextStyle(fontSize: 28),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Text(
+                                      choice == 'bat' ? 'Batting' : 'Balling',
+                                      style: _label(14,
+                                          color: _tossChoice == choice
+                                              ? _kLime
+                                              : Colors.white.withValues(alpha: 0.6),
+                                          weight: FontWeight.w700),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text(choice == 'bat' ? '🏏' : '⚾', style: const TextStyle(fontSize: 24)),
-                                Text(choice.toUpperCase(), style: _label(12, color: _tossChoice == choice ? _kLime : Colors.white.withValues(alpha: 0.5))),
-                              ]),
                             ),
-                          )),
+                          ),
                           if (choice != 'bowl') const SizedBox(width: 12),
                         ],
                       ]),
@@ -2531,6 +3299,355 @@ class _BasketballScorerState extends State<_BasketballScorer>
                       ),
                   ],
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Paddleball Scorer ────────────────────────────────────────────────────────
+// Rules: sets to 6 games (lead by 2), tiebreak at 6-6. Same scoring as Tennis.
+
+class _PaddleballScorer extends StatefulWidget {
+  const _PaddleballScorer({required this.config, required this.onExit});
+  final _MatchConfig config;
+  final VoidCallback onExit;
+
+  @override
+  State<_PaddleballScorer> createState() => _PaddleballScorerState();
+}
+
+class _PaddleballScorerState extends State<_PaddleballScorer> {
+  late int _bestOf;
+  late String _p1, _p2;
+
+  List<(int, int)> _sets = [];
+  int _p1games = 0, _p2games = 0;
+  int _p1pts = 0, _p2pts = 0;
+  bool _inTiebreak = false;
+  int _p1tb = 0, _p2tb = 0;
+  bool _matchOver = false;
+  String _result = '';
+
+  static const _ptLabels = ['0', '1', '2', '3'];
+
+  @override
+  void initState() {
+    super.initState();
+    _bestOf = widget.config.params['bestOf'] as int? ?? 3;
+    _p1 = widget.config.team1;
+    _p2 = widget.config.team2;
+  }
+
+  int _setsWon(int p) =>
+      _sets.where((s) => p == 1 ? s.$1 > s.$2 : s.$2 > s.$1).length;
+  int get _setsNeeded => (_bestOf / 2).ceil();
+
+  void _addPoint(int player) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (_inTiebreak) {
+        if (player == 1) _p1tb++; else _p2tb++;
+        _checkTiebreak();
+        return;
+      }
+      if (player == 1) _p1pts++; else _p2pts++;
+      _resolvePoint();
+    });
+  }
+
+  void _undoPoint() {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      if (_inTiebreak) {
+        if (_p1tb > 0) _p1tb--; else if (_p2tb > 0) _p2tb--;
+        return;
+      }
+      if (_p1pts > 0) _p1pts--; else if (_p2pts > 0) _p2pts--;
+    });
+  }
+
+  void _resolvePoint() {
+    final p1 = _p1pts, p2 = _p2pts;
+    bool gameOver = false;
+    int winner = 0;
+    if (p1 >= 3 && p2 >= 3) {
+      if (p1 - p2 >= 2) { gameOver = true; winner = 1; }
+      else if (p2 - p1 >= 2) { gameOver = true; winner = 2; }
+    } else {
+      if (p1 >= 4) { gameOver = true; winner = 1; }
+      else if (p2 >= 4) { gameOver = true; winner = 2; }
+    }
+    if (gameOver) {
+      _p1pts = 0; _p2pts = 0;
+      if (winner == 1) _p1games++; else _p2games++;
+      _checkSetWin();
+    }
+  }
+
+  void _checkSetWin() {
+    if (_p1games >= 6 && _p1games - _p2games >= 2) { _closeSet(); return; }
+    if (_p2games >= 6 && _p2games - _p1games >= 2) { _closeSet(); return; }
+    if (_p1games == 6 && _p2games == 6) { _inTiebreak = true; return; }
+    if (_p1games == 7 || _p2games == 7) { _closeSet(); }
+  }
+
+  void _closeSet() {
+    _sets.add((_p1games, _p2games));
+    _p1games = 0; _p2games = 0;
+    final w1 = _setsWon(1), w2 = _setsWon(2);
+    if (w1 >= _setsNeeded) { _matchOver = true; _result = '$_p1 WON\n$w1 — $w2 sets'; }
+    else if (w2 >= _setsNeeded) { _matchOver = true; _result = '$_p2 WON\n$w2 — $w1 sets'; }
+  }
+
+  void _checkTiebreak() {
+    final p1 = _p1tb, p2 = _p2tb;
+    if (p1 >= 7 && p1 - p2 >= 2) { _inTiebreak = false; _p1tb = 0; _p2tb = 0; _sets.add((7, _p2games)); _p1games = 0; _p2games = 0; final w1 = _setsWon(1); if (w1 >= _setsNeeded) { _matchOver = true; _result = '$_p1 WON'; } }
+    else if (p2 >= 7 && p2 - p1 >= 2) { _inTiebreak = false; _p1tb = 0; _p2tb = 0; _sets.add((_p1games, 7)); _p1games = 0; _p2games = 0; final w2 = _setsWon(2); if (w2 >= _setsNeeded) { _matchOver = true; _result = '$_p2 WON'; } }
+  }
+
+  String _ptsLabel(int p1, int p2) {
+    if (_inTiebreak) return '';
+    if (p1 >= 3 && p2 >= 3) {
+      if (p1 == p2) return 'Deuce';
+      return p1 > p2 ? 'Adv $_p1' : 'Adv $_p2';
+    }
+    return '${_ptLabels[p1.clamp(0, 3)]} — ${_ptLabels[p2.clamp(0, 3)]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_matchOver) return _MatchResultScreen(result: _result, onExit: widget.onExit);
+    return Scaffold(
+      backgroundColor: _kBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _ScorerTopBar(
+              sport: 'PADDLE BALL',
+              info: 'Best of $_bestOf sets${_inTiebreak ? " • TIEBREAK" : ""}',
+              onExit: widget.onExit,
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: _glowCard(active: true),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const SizedBox(width: 100),
+                              for (int i = 0; i < _bestOf; i++)
+                                Expanded(child: Center(child: Text('S${i + 1}', style: _label(10, color: Colors.white.withValues(alpha: 0.4))))),
+                              const SizedBox(width: 8),
+                              SizedBox(width: 60, child: Center(child: Text(_inTiebreak ? 'TB' : 'PTS', style: _label(10, color: Colors.white.withValues(alpha: 0.4))))),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _TennisRow(name: _p1, sets: _sets, currentGames: _p1games, isP1: true, pts: _inTiebreak ? _p1tb : _p1pts, bestOf: _bestOf, inTiebreak: _inTiebreak),
+                          const SizedBox(height: 8),
+                          _TennisRow(name: _p2, sets: _sets, currentGames: _p2games, isP1: false, pts: _inTiebreak ? _p2tb : _p2pts, bestOf: _bestOf, inTiebreak: _inTiebreak),
+                          const SizedBox(height: 16),
+                          if (!_inTiebreak)
+                            Text(_ptsLabel(_p1pts, _p2pts), style: _display(20, color: _kLime)),
+                        ],
+                      ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        GestureDetector(
+                          onTap: _undoPoint,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: _glass(radius: 10),
+                            child: Text('↩ UNDO', style: _label(12, color: Colors.white.withValues(alpha: 0.6))),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(child: _LargePointBtn(label: _p1.toUpperCase(), onTap: () => _addPoint(1))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _LargePointBtn(label: _p2.toUpperCase(), onTap: () => _addPoint(2))),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Pickleball Scorer ────────────────────────────────────────────────────────
+// Rules: rally-point to 11, win by 2. Only serving side scores in traditional
+// mode — we use rally-point (easier for casual play).
+
+class _PickleballScorer extends StatefulWidget {
+  const _PickleballScorer({required this.config, required this.onExit});
+  final _MatchConfig config;
+  final VoidCallback onExit;
+
+  @override
+  State<_PickleballScorer> createState() => _PickleballScorerState();
+}
+
+class _PickleballScorerState extends State<_PickleballScorer> {
+  late int _bestOf;
+  late String _p1, _p2;
+  List<(int, int)> _games = [];
+  int _p1pts = 0, _p2pts = 0;
+  int _server = 1;
+  bool _matchOver = false;
+  String _result = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _bestOf = widget.config.params['bestOf'] as int? ?? 3;
+    _p1 = widget.config.team1;
+    _p2 = widget.config.team2;
+  }
+
+  int _gamesWon(int player) =>
+      _games.where((g) => player == 1 ? g.$1 > g.$2 : g.$2 > g.$1).length;
+  int get _gamesNeeded => (_bestOf / 2).ceil();
+
+  void _addPoint(int player) {
+    HapticFeedback.lightImpact();
+    setState(() {
+      if (player == 1) { _p1pts++; _server = 1; }
+      else { _p2pts++; _server = 2; }
+    });
+    _checkGameWin();
+  }
+
+  void _checkGameWin() {
+    final p1 = _p1pts, p2 = _p2pts;
+    bool gameOver = false;
+    if (p1 >= 11 && p1 - p2 >= 2) gameOver = true;
+    else if (p2 >= 11 && p2 - p1 >= 2) gameOver = true;
+    if (gameOver) {
+      setState(() {
+        _games.add((_p1pts, _p2pts));
+        _p1pts = 0; _p2pts = 0;
+      });
+      final w1 = _gamesWon(1), w2 = _gamesWon(2);
+      if (w1 >= _gamesNeeded) { setState(() { _matchOver = true; _result = '$_p1 WON\n$w1 — $w2 games'; }); }
+      else if (w2 >= _gamesNeeded) { setState(() { _matchOver = true; _result = '$_p2 WON\n$w2 — $w1 games'; }); }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_matchOver) return _MatchResultScreen(result: _result, onExit: widget.onExit);
+    final isDeuceZone = _p1pts >= 10 && _p2pts >= 10;
+
+    return Scaffold(
+      backgroundColor: _kBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _ScorerTopBar(
+              sport: 'PICKLE BALL',
+              info: 'Game ${_games.length + 1} of $_bestOf${isDeuceZone ? " • DEUCE" : ""}',
+              onExit: widget.onExit,
+            ),
+            // Games row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (int i = 0; i < _bestOf; i++) ...[
+                    if (i < _games.length)
+                      _SetScorePill(p1: _games[i].$1, p2: _games[i].$2, active: false)
+                    else if (i == _games.length)
+                      _SetScorePill(p1: _p1pts, p2: _p2pts, active: true)
+                    else
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 44, height: 28,
+                        decoration: _glass(radius: 8),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _ShuttleScore(p1: _p1, p2: _p2, s1: _p1pts, s2: _p2pts, server: _server),
+                    const SizedBox(height: 8),
+                    Text('First to 11  •  win by 2',
+                        style: _label(11, color: Colors.white.withValues(alpha: 0.3))),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _addPoint(1),
+                      child: Container(
+                        height: 80,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [_kLime.withValues(alpha: 0.2), _kLime.withValues(alpha: 0.05)]),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _kLime.withValues(alpha: 0.5)),
+                        ),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          const Icon(Icons.arrow_back, color: _kLime, size: 20),
+                          const SizedBox(height: 4),
+                          Text(_p1.toUpperCase(), style: _label(11, color: _kLime)),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _addPoint(2),
+                      child: Container(
+                        height: 80,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [_kLime.withValues(alpha: 0.05), _kLime.withValues(alpha: 0.2)]),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _kLime.withValues(alpha: 0.5)),
+                        ),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          const Icon(Icons.arrow_forward, color: _kLime, size: 20),
+                          const SizedBox(height: 4),
+                          Text(_p2.toUpperCase(), style: _label(11, color: _kLime)),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
