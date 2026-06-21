@@ -350,7 +350,7 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
       children: [
         Row(
           children: [
-            Text('ARENA MAP',
+            Text('COURTS',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 11,
@@ -359,11 +359,11 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
                   color: Colors.white.withValues(alpha: 0.3),
                 )),
             const Spacer(),
-            Text('Tap a court to select',
+            Text('${_availableCount} available for $_slotLabel',
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.25),
+                  color: Colors.white.withValues(alpha: 0.35),
                 )),
           ],
         ),
@@ -397,35 +397,35 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
                     final i = entry.key;
                     final court = entry.value;
                     final isSelected = _selectedCourt == i;
+                    final availForSlot = !_slotConflicts(i, _dragStart, _dragEnd);
                     final availPct = _courtAvailability(i);
 
                     return Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(right: i < _mockCourts.length - 1 ? 8 : 0),
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: availForSlot ? () {
                             HapticFeedback.lightImpact();
                             setState(() {
                               _selectedCourt = isSelected ? null : i;
-                              if (_selectedCourt != null) {
-                                // Snap to first available slot
-                                _dragStart = 9.0;
-                                _dragEnd = 10.0;
-                              }
                             });
-                          },
+                          } : null,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             curve: Curves.easeOutExpo,
                             decoration: BoxDecoration(
-                              color: isSelected
-                                  ? court.color.withValues(alpha: 0.25)
-                                  : court.color.withValues(alpha: 0.08),
+                              color: !availForSlot
+                                  ? Colors.white.withValues(alpha: 0.03)
+                                  : isSelected
+                                      ? court.color.withValues(alpha: 0.25)
+                                      : court.color.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected
-                                    ? court.color.withValues(alpha: 0.9)
-                                    : court.color.withValues(alpha: 0.2),
+                                color: !availForSlot
+                                    ? Colors.white.withValues(alpha: 0.07)
+                                    : isSelected
+                                        ? court.color.withValues(alpha: 0.9)
+                                        : court.color.withValues(alpha: 0.2),
                                 width: isSelected ? 1.5 : 1,
                               ),
                               boxShadow: isSelected
@@ -439,31 +439,35 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                // Occupancy arc indicator
-                                Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 40,
-                                      height: 40,
-                                      child: CircularProgressIndicator(
-                                        value: availPct,
-                                        strokeWidth: 3,
-                                        backgroundColor: Colors.white.withValues(alpha: 0.07),
-                                        color: isSelected ? court.color : court.color.withValues(alpha: 0.5),
+                                if (!availForSlot)
+                                  Icon(Icons.lock_outline,
+                                      size: 18,
+                                      color: Colors.white.withValues(alpha: 0.2))
+                                else
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 40,
+                                        height: 40,
+                                        child: CircularProgressIndicator(
+                                          value: availPct,
+                                          strokeWidth: 3,
+                                          backgroundColor: Colors.white.withValues(alpha: 0.07),
+                                          color: isSelected ? court.color : court.color.withValues(alpha: 0.5),
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      '${(availPct * 100).round()}%',
-                                      style: TextStyle(
-                                        fontFamily: 'Inter',
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                      Text(
+                                        '${(availPct * 100).round()}%',
+                                        style: TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
                                 const SizedBox(height: 6),
                                 Text(
                                   court.name,
@@ -471,19 +475,25 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
                                     fontFamily: 'Barlow Condensed',
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                                    color: !availForSlot
+                                        ? Colors.white.withValues(alpha: 0.2)
+                                        : isSelected
+                                            ? Colors.white
+                                            : Colors.white.withValues(alpha: 0.5),
                                     height: 1.1,
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                                 Text(
-                                  court.sport,
+                                  !availForSlot ? 'BOOKED' : court.sport,
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 9,
-                                    color: isSelected
-                                        ? court.color
-                                        : court.color.withValues(alpha: 0.5),
+                                    color: !availForSlot
+                                        ? const Color(0xFFE34B34).withValues(alpha: 0.6)
+                                        : isSelected
+                                            ? court.color
+                                            : court.color.withValues(alpha: 0.5),
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -515,6 +525,12 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
       ],
     );
   }
+
+  int get _availableCount =>
+      _mockCourts.asMap().keys.where((i) => !_slotConflicts(i, _dragStart, _dragEnd)).length;
+
+  String get _slotLabel =>
+      '${_formatHour(_dragStart)}–${_formatHour(_dragEnd)}';
 
   double _courtAvailability(int courtId) {
     final court = _mockCourts[courtId];
@@ -633,6 +649,11 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
                             _dragStart = h.clamp(_timelineStart, _timelineEnd - 0.5);
                             _dragEnd = (_dragStart + (_dragEnd - _dragStart))
                                 .clamp(_timelineStart + 0.5, _timelineEnd);
+                            // Deselect court if it's now conflicting
+                            if (_selectedCourt != null &&
+                                _slotConflicts(_selectedCourt!, _dragStart, _dragEnd)) {
+                              _selectedCourt = null;
+                            }
                           });
                         }
                       },
@@ -645,6 +666,11 @@ class _SlotPickerScreenState extends ConsumerState<SlotPickerScreen>
                             final dur = _dragEnd - _dragStart;
                             _dragStart = h;
                             _dragEnd = (h + dur).clamp(_timelineStart + 0.5, _timelineEnd);
+                            // Deselect court if it's now conflicting
+                            if (_selectedCourt != null &&
+                                _slotConflicts(_selectedCourt!, _dragStart, _dragEnd)) {
+                              _selectedCourt = null;
+                            }
                           });
                         }
                       },

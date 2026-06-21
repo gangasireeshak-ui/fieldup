@@ -340,22 +340,6 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
                     ),
                   ),
 
-                  // CREATE GAME button
-                  Container(
-                    color: AppColors.neutral50,
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        onPressed: () =>
-                            context.go('/venues/${widget.venueId}/slots'),
-                        icon: const Icon(Icons.add_circle_outline, size: 20),
-                        label: const Text('CREATE GAME'),
-                      ),
-                    ),
-                  ),
-
                   const _Divider(),
 
                   // Amenities
@@ -387,115 +371,6 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
                           ),
                         ],
                       ),
-                    ),
-                  ),
-
-                  const _Divider(),
-
-                  // Nearby Games
-                  Container(
-                    color: AppColors.neutral50,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _SectionLabel('NEARBY GAMES'),
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.neutral200),
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.brandGreen100,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.sports_tennis,
-                                      color: AppColors.brandGreen700,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Badminton 2v2',
-                                          style:
-                                              AppTextStyles.bodyLG.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        Text(
-                                          'Today, 7:00 PM',
-                                          style: AppTextStyles.caption
-                                              .copyWith(
-                                            color: AppColors.neutral600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.teal50,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'Intermediate',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.teal600,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.only(top: 12),
-                                decoration: const BoxDecoration(
-                                  border: Border(
-                                    top: BorderSide(color: AppColors.neutral100),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      size: 16,
-                                      color: AppColors.neutral400,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '2.5 km away',
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.neutral600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ),
                   ),
 
@@ -548,7 +423,7 @@ class _VenueDetailScreenState extends ConsumerState<VenueDetailScreen> {
           height: 52,
           child: ElevatedButton(
             onPressed: () => context.go('/venues/${widget.venueId}/slots'),
-            child: const Text('BOOK COURT'),
+            child: const Text('BOOK VENUE'),
           ),
         ),
       ),

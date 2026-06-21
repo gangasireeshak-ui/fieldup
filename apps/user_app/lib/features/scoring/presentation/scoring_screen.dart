@@ -655,89 +655,108 @@ class _MatchSetupScreenState extends State<_MatchSetupScreen> {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setS) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Color(0xFF0F0F0F),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('ADD PLAYER', style: _display(22, color: _kLime)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameCtrl,
-                  autofocus: true,
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'Player name',
-                    hintStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white.withValues(alpha: 0.3)),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.04),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _kLime, width: 1.5),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text('SKILL TIER', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: _PlayerEntry.tiers.map((t) {
-                    final active = t == selectedTier;
-                    return GestureDetector(
-                      onTap: () => setS(() => selectedTier = t),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        builder: (ctx, setS) {
+          final bottom = MediaQuery.of(ctx).viewInsets.bottom;
+          return DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.92,
+            expand: false,
+            builder: (_, scrollCtrl) => Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF0F0F0F),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: bottom),
+                child: ListView(
+                  controller: scrollCtrl,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  shrinkWrap: true,
+                  children: [
+                    // Drag handle
+                    Center(
+                      child: Container(
+                        width: 36, height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: active ? _kLime.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: active ? _kLime.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.1),
-                          ),
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        child: Text(t, style: _label(12, color: active ? _kLime : Colors.white.withValues(alpha: 0.5))),
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () {
-                    final name = nameCtrl.text.trim();
-                    if (name.isEmpty) return;
-                    setState(() {
-                      roster.add(_PlayerEntry(name: name, skillTier: selectedTier));
-                    });
-                    Navigator.pop(ctx);
-                  },
-                  child: Container(
-                    height: 52,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: _kLime,
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text('ADD PLAYER', style: _display(17, color: AppColors.onPrimary)),
-                  ),
+                    Text('ADD PLAYER', style: _display(22, color: _kLime)),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: nameCtrl,
+                      autofocus: true,
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Player name',
+                        hintStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white.withValues(alpha: 0.3)),
+                        filled: true,
+                        fillColor: Colors.white.withValues(alpha: 0.04),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: _kLime, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text('SKILL TIER', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8, runSpacing: 8,
+                      children: _PlayerEntry.tiers.map((t) {
+                        final active = t == selectedTier;
+                        return GestureDetector(
+                          onTap: () => setS(() => selectedTier = t),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: active ? _kLime.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: active ? _kLime.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.1),
+                              ),
+                            ),
+                            child: Text(t, style: _label(12, color: active ? _kLime : Colors.white.withValues(alpha: 0.5))),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () {
+                        final name = nameCtrl.text.trim();
+                        if (name.isEmpty) return;
+                        setState(() {
+                          roster.add(_PlayerEntry(name: name, skillTier: selectedTier));
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _kLime,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text('ADD PLAYER', style: _display(17, color: AppColors.onPrimary)),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -1253,6 +1272,11 @@ class _CricketScorerState extends State<_CricketScorer> {
   final List<String> _xi1 = [];
   final List<String> _xi2 = [];
 
+  // Match meta
+  String _umpire1 = '';
+  String _umpire2 = '';
+  String _matchVenue = '';
+
   // Toss
   String _tossWinner = '';
   String _tossChoice = ''; // 'bat' or 'bowl'
@@ -1266,6 +1290,9 @@ class _CricketScorerState extends State<_CricketScorer> {
   // Squad setup controllers
   final _squad1Ctrl = TextEditingController();
   final _squad2Ctrl = TextEditingController();
+  final _umpire1Ctrl = TextEditingController();
+  final _umpire2Ctrl = TextEditingController();
+  final _venueCtrl   = TextEditingController();
 
   // Innings state
   int _inning = 1;
@@ -1317,6 +1344,9 @@ class _CricketScorerState extends State<_CricketScorer> {
   void dispose() {
     _squad1Ctrl.dispose();
     _squad2Ctrl.dispose();
+    _umpire1Ctrl.dispose();
+    _umpire2Ctrl.dispose();
+    _venueCtrl.dispose();
     super.dispose();
   }
 
@@ -1334,18 +1364,82 @@ class _CricketScorerState extends State<_CricketScorer> {
         if (isWicket) _i2wkts++;
         _i2log.add(event);
       }
-      // Rotate strike on odd runs or end of over
-      if (legalBalls == 1) {
-        if (runsScored.isOdd) {
-          final tmp = _striker; _striker = _nonStriker; _nonStriker = tmp;
-        }
-        if (_ballsInOver == 0) {
-          // End of over — swap ends
-          final tmp = _striker; _striker = _nonStriker; _nonStriker = tmp;
-        }
-      }
     });
     _checkInningsEnd();
+    if (_matchOver) return;
+
+    final completedOver = legalBalls == 1 && _ballsInOver == 0;
+
+    if (legalBalls == 1 && runsScored.isOdd && !isWicket) {
+      // Odd runs — ask who is at striker's end after the run
+      _showStrikerChoiceSheet();
+    } else if (completedOver) {
+      // End of over — swap ends automatically then ask for new bowler
+      setState(() {
+        final tmp = _striker; _striker = _nonStriker; _nonStriker = tmp;
+      });
+      _pickBowler();
+    }
+  }
+
+  void _showStrikerChoiceSheet() {
+    if (_striker.isEmpty && _nonStriker.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0A0A0A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('WHO IS ON STRIKE?', style: _display(20, color: _kLime)),
+            const SizedBox(height: 4),
+            Text('Batters crossed — confirm the striker', style: _label(12, color: Colors.white.withValues(alpha: 0.4))),
+            const SizedBox(height: 16),
+            Row(children: [
+              for (final batter in [_striker, _nonStriker]) ...[
+                if (batter.isNotEmpty)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          if (batter != _striker) {
+                            final tmp = _striker; _striker = _nonStriker; _nonStriker = tmp;
+                          }
+                          // After odd-run over boundary, also ask bowler
+                          if (_ballsInOver == 0) _pickBowler();
+                        });
+                      },
+                      child: Container(
+                        height: 64,
+                        alignment: Alignment.center,
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          color: _kLime.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: _kLime.withValues(alpha: 0.4)),
+                        ),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Text(batter, style: _label(14, color: Colors.white, weight: FontWeight.w700), overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 2),
+                          Text('ON STRIKE', style: _label(9, color: _kLime)),
+                        ]),
+                      ),
+                    ),
+                  ),
+                if (batter != (_nonStriker.isNotEmpty ? _nonStriker : '')) const SizedBox(width: 8),
+              ],
+            ]),
+          ],
+        ),
+      ),
+    );
   }
 
   void _checkInningsEnd() {
@@ -1417,10 +1511,11 @@ class _CricketScorerState extends State<_CricketScorer> {
   }
 
   void _showWicketDialog() {
-    final batters = _battingXI
-        .where((b) => b != _nonStriker)
-        .toList();
+    final batters = _battingXI.where((b) => b != _nonStriker).toList();
     final wicketTypes = ['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Hit Wicket'];
+    // Lift mutable state ABOVE the builder so setS() doesn't reset them
+    String? selectedType;
+    String? outBatter = _striker.isNotEmpty ? _striker : (batters.isNotEmpty ? batters.first : null);
 
     showModalBottomSheet(
       context: context,
@@ -1428,103 +1523,109 @@ class _CricketScorerState extends State<_CricketScorer> {
       isScrollControlled: true,
       builder: (_) => StatefulBuilder(
         builder: (ctx, setS) {
-          String? selectedType;
-          String? outBatter = _striker;
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0A0A),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(top: BorderSide(color: AppColors.error.withValues(alpha: 0.4))),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('WICKET', style: _display(28, color: AppColors.error)),
-                const SizedBox(height: 4),
-                Text('How out?', style: _label(13, color: Colors.white.withValues(alpha: 0.5))),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: wicketTypes.map((t) => GestureDetector(
-                    onTap: () => setS(() => selectedType = t),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selectedType == t
-                            ? AppColors.error.withValues(alpha: 0.2)
-                            : Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
+          return SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.only(
+                left: 20, right: 20, top: 20,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0A0A),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border(top: BorderSide(color: AppColors.error.withValues(alpha: 0.4))),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('WICKET', style: _display(28, color: AppColors.error)),
+                  const SizedBox(height: 4),
+                  Text('How out?', style: _label(13, color: Colors.white.withValues(alpha: 0.5))),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8, runSpacing: 8,
+                    children: wicketTypes.map((t) => GestureDetector(
+                      onTap: () => setS(() => selectedType = t),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
                           color: selectedType == t
-                              ? AppColors.error.withValues(alpha: 0.7)
-                              : Colors.white.withValues(alpha: 0.1),
+                              ? AppColors.error.withValues(alpha: 0.2)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: selectedType == t
+                                ? AppColors.error.withValues(alpha: 0.7)
+                                : Colors.white.withValues(alpha: 0.1),
+                          ),
                         ),
+                        child: Text(t, style: _label(13,
+                            color: selectedType == t ? AppColors.error : Colors.white)),
                       ),
-                      child: Text(t, style: _label(13,
-                          color: selectedType == t ? AppColors.error : Colors.white)),
-                    ),
-                  )).toList(),
-                ),
-                const SizedBox(height: 16),
-                Text('OUT BATTER', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8, runSpacing: 8,
-                  children: batters.map((b) => GestureDetector(
-                    onTap: () => setS(() => outBatter = b),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: outBatter == b
-                            ? AppColors.error.withValues(alpha: 0.15)
-                            : Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: outBatter == b
-                              ? AppColors.error.withValues(alpha: 0.6)
-                              : Colors.white.withValues(alpha: 0.08),
-                        ),
-                      ),
-                      child: Text(b, style: _label(12,
-                          color: outBatter == b ? AppColors.error : Colors.white.withValues(alpha: 0.7))),
-                    ),
-                  )).toList(),
-                ),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: selectedType == null ? null : () {
-                    Navigator.pop(ctx);
-                    _addBall('W', 1, 0, true);
-                    HapticFeedback.heavyImpact();
-                    // New batsman comes in
-                    final remaining = _battingXI
-                        .where((b) => b != _nonStriker && b != outBatter)
-                        .toList();
-                    if (remaining.isNotEmpty) {
-                      _showPlayerPicker(
-                        title: 'NEW BATSMAN',
-                        players: remaining,
-                        onPick: (p) => setState(() => _striker = p),
-                      );
-                    }
-                  },
-                  child: Container(
-                    height: 52,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: selectedType != null
-                          ? AppColors.error.withValues(alpha: 0.8)
-                          : Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('CONFIRM WICKET',
-                        style: _display(18, color: Colors.white)),
+                    )).toList(),
                   ),
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 16),
+                  Text('OUT BATTER', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8, runSpacing: 8,
+                    children: batters.map((b) => GestureDetector(
+                      onTap: () => setS(() => outBatter = b),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: outBatter == b
+                              ? AppColors.error.withValues(alpha: 0.15)
+                              : Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: outBatter == b
+                                ? AppColors.error.withValues(alpha: 0.6)
+                                : Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Text(b, style: _label(12,
+                            color: outBatter == b ? AppColors.error : Colors.white.withValues(alpha: 0.7))),
+                      ),
+                    )).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: selectedType == null ? null : () {
+                      Navigator.pop(ctx);
+                      HapticFeedback.heavyImpact();
+                      _addBall('W', 1, 0, true);
+                      final dismissed = outBatter ?? _striker;
+                      // New batsman comes in
+                      final remaining = _battingXI
+                          .where((b) => b != _nonStriker && b != dismissed)
+                          .toList();
+                      if (remaining.isNotEmpty) {
+                        _showPlayerPicker(
+                          title: 'NEW BATSMAN',
+                          players: remaining,
+                          onPick: (p) => setState(() => _striker = p),
+                        );
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      height: 52,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selectedType != null
+                            ? AppColors.error.withValues(alpha: 0.8)
+                            : Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text('CONFIRM WICKET',
+                          style: _display(18, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -1599,7 +1700,7 @@ class _CricketScorerState extends State<_CricketScorer> {
       body: SafeArea(
         child: Column(
           children: [
-            _ScorerTopBar(sport: 'CRICKET', info: 'TEAM SETUP', onExit: widget.onExit),
+            _ScorerTopBar(sport: 'CRICKET', info: 'MATCH SETUP', onExit: widget.onExit),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
@@ -1607,6 +1708,7 @@ class _CricketScorerState extends State<_CricketScorer> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 8),
+                    // Teams summary card
                     Text('TEAMS', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
                     const SizedBox(height: 12),
                     Container(
@@ -1628,9 +1730,36 @@ class _CricketScorerState extends State<_CricketScorer> {
                     ),
                     const SizedBox(height: 20),
                     Text('OVERS: $_totalOvers', style: _display(18, color: _kLime)),
+                    const SizedBox(height: 20),
+
+                    // Match venue
+                    Text('MATCH VENUE', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
                     const SizedBox(height: 8),
-                    Text('Squads auto-filled with player names. Customise in a future version.',
-                        style: _label(12, color: Colors.white.withValues(alpha: 0.3))),
+                    _CricketInputField(
+                      controller: _venueCtrl,
+                      hint: 'Ground / venue name',
+                      icon: Icons.stadium_outlined,
+                      onChanged: (v) => setState(() => _matchVenue = v),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Umpires
+                    Text('UMPIRES', style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+                    const SizedBox(height: 8),
+                    _CricketInputField(
+                      controller: _umpire1Ctrl,
+                      hint: 'Umpire 1 name',
+                      icon: Icons.sports_outlined,
+                      onChanged: (v) => setState(() => _umpire1 = v),
+                    ),
+                    const SizedBox(height: 10),
+                    _CricketInputField(
+                      controller: _umpire2Ctrl,
+                      hint: 'Umpire 2 name (optional)',
+                      icon: Icons.sports_outlined,
+                      onChanged: (v) => setState(() => _umpire2 = v),
+                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -1888,6 +2017,8 @@ class _CricketScorerState extends State<_CricketScorer> {
               sport: 'CRICKET',
               info: 'INN $_inning • ${_battingTeamName.toUpperCase()} BATTING',
               onExit: widget.onExit,
+              venue: _matchVenue.isNotEmpty ? _matchVenue : null,
+              umpire: _umpire1.isNotEmpty ? _umpire1 : null,
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -2110,6 +2241,44 @@ class _CricketScorerState extends State<_CricketScorer> {
 }
 
 // ── Shared cricket sub-widgets ────────────────────────────────────────────────
+
+class _CricketInputField extends StatelessWidget {
+  const _CricketInputField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.onChanged,
+  });
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Colors.white.withValues(alpha: 0.25)),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.04),
+        prefixIcon: Icon(icon, color: Colors.white.withValues(alpha: 0.3), size: 18),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _kLime, width: 1.5),
+        ),
+      ),
+    );
+  }
+}
 
 class _NextBtn extends StatelessWidget {
   const _NextBtn({required this.label, required this.onTap});
@@ -3848,10 +4017,18 @@ class _VolleyballScorerState extends State<_VolleyballScorer> {
 // ─── Shared Widgets ───────────────────────────────────────────────────────────
 
 class _ScorerTopBar extends StatelessWidget {
-  const _ScorerTopBar({required this.sport, required this.info, required this.onExit});
+  const _ScorerTopBar({
+    required this.sport,
+    required this.info,
+    required this.onExit,
+    this.venue,
+    this.umpire,
+  });
   final String sport;
   final String info;
   final VoidCallback onExit;
+  final String? venue;
+  final String? umpire;
 
   @override
   Widget build(BuildContext context) {
@@ -3872,13 +4049,48 @@ class _ScorerTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(sport, style: _display(22, color: _kLime)),
-              Text(info, style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(sport, style: _display(22, color: _kLime)),
+                Text(info, style: _label(11, color: Colors.white.withValues(alpha: 0.4))),
+              ],
+            ),
           ),
+          // venue + umpire meta shown on the right when provided
+          if (venue != null || umpire != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (venue != null)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.stadium_outlined, size: 10, color: Colors.white.withValues(alpha: 0.3)),
+                    const SizedBox(width: 3),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 110),
+                      child: Text(
+                        venue!,
+                        style: _label(10, color: Colors.white.withValues(alpha: 0.45)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+                if (umpire != null)
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.sports_outlined, size: 10, color: Colors.white.withValues(alpha: 0.3)),
+                    const SizedBox(width: 3),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 110),
+                      child: Text(
+                        umpire!,
+                        style: _label(10, color: Colors.white.withValues(alpha: 0.45)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ]),
+              ],
+            ),
         ],
       ),
     );
