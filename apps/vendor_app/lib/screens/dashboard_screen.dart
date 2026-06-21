@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fieldup_core/fieldup_core.dart';
+import '../providers.dart';
 
 const _kBlue = Color(0xFF3A8DCC);
 const _kLime = Color(0xFFC8F23A);
@@ -21,16 +24,59 @@ BoxDecoration _card() => BoxDecoration(
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-class VendorDashboardScreen extends StatelessWidget {
+class VendorDashboardScreen extends ConsumerWidget {
   const VendorDashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final venuesAsync = ref.watch(myVenuesProvider);
+
+    return venuesAsync.when(
+      loading: () => const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: Text('Error: $e', style: const TextStyle(color: Colors.white))),
+      ),
+      data: (venues) {
+        final venue = venues.isNotEmpty ? venues.first : null;
+        return _DashboardBody(venue: venue);
+      },
+    );
+  }
+}
+
+class _DashboardBody extends ConsumerWidget {
+  const _DashboardBody({this.venue});
+  final Venue? venue;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final revenueAsync = venue != null
+        ? ref.watch(venueRevenueProvider(venue!.id))
+        : const AsyncValue<Map<String, dynamic>>.data({});
+    final bookingsAsync = venue != null
+        ? ref.watch(todaysBookingsProvider(venue!.id))
+        : const AsyncValue<List<Map<String, dynamic>>>.data([]);
+
+    final venueName = venue?.name ?? 'Your Arena';
+    final courtCount = 0; // TODO: from courts query
+    final revenue = revenueAsync.asData?.value ?? {};
+    final todayPaise = revenue['today_paise'] as int? ?? 0;
+    final weekPaise = revenue['week_paise'] as int? ?? 0;
+    final todayBookings = revenue['today_bookings'] as int? ?? 0;
+    final bookings = bookingsAsync.asData?.value ?? [];
+
     return Scaffold(
       backgroundColor: _kBg,
       body: CustomScrollView(
         slivers: [
-          _VendorAppBar(title: 'VENUE BUSINESS OS', subtitle: 'Feather Touch Arena'),
+          _VendorAppBar(
+            title: 'VENUE BUSINESS OS',
+            subtitle: venue?.name ?? 'Your Arena',
+          ),
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
@@ -56,8 +102,8 @@ class VendorDashboardScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 16),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('4 COURTS LIVE', style: _head(22, c: _kBlue)),
-                        Text('3 bookings today · ₹4,200 earned', style: _body(12)),
+                        Text(venue != null ? venue!.name.toUpperCase() : 'YOUR ARENA', style: _head(18, c: _kBlue)),
+                        Text('$todayBookings bookings today · ${formatRupees(todayPaise)} earned', style: _body(12)),
                       ])),
                       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                         Container(
@@ -67,7 +113,7 @@ class VendorDashboardScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(color: const Color(0xFF58B48F)),
                           ),
-                          child: Text('OPEN', style: _body(10, c: const Color(0xFF58B48F))),
+                          child: Text(venue?.isActive == true ? 'OPEN' : 'PENDING', style: _body(10, c: const Color(0xFF58B48F))),
                         ),
                         const SizedBox(height: 6),
                         const Icon(Icons.chevron_right, color: _kBlue, size: 16),
@@ -77,17 +123,17 @@ class VendorDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Revenue KPI row — tap goes to /revenue
+                // Revenue KPI row
                 Row(children: [
-                  _KpiTile(label: 'Today', value: '₹4,200', trend: '+12%', positive: true, onTap: () => context.go('/revenue')),
+                  _KpiTile(label: 'Today', value: formatRupees(todayPaise), trend: '', positive: true, onTap: () => context.go('/revenue')),
                   const SizedBox(width: 10),
-                  _KpiTile(label: 'This Week', value: '₹28,400', trend: '+8%', positive: true, onTap: () => context.go('/revenue')),
+                  _KpiTile(label: 'This Week', value: formatRupees(weekPaise), trend: '', positive: true, onTap: () => context.go('/revenue')),
                   const SizedBox(width: 10),
-                  _KpiTile(label: 'Occupancy', value: '74%', trend: '-3%', positive: false, onTap: () => context.go('/insights')),
+                  _KpiTile(label: 'Bookings', value: '$todayBookings', trend: 'today', positive: true, onTap: () => context.go('/bookings')),
                 ]),
                 const SizedBox(height: 16),
 
-                // Court occupancy grid — header row with "Manage" link
+                // Court occupancy grid
                 Row(children: [
                   Text('COURT OCCUPANCY', style: _body(11, c: Colors.white.withValues(alpha: 0.3))),
                   const Spacer(),
@@ -133,7 +179,7 @@ class VendorDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Today's bookings — header with "View All" link
+                // Today's bookings
                 Row(children: [
                   Text("TODAY'S BOOKINGS", style: _body(11, c: Colors.white.withValues(alpha: 0.3))),
                   const Spacer(),
@@ -143,27 +189,36 @@ class VendorDashboardScreen extends StatelessWidget {
                   ),
                 ]),
                 const SizedBox(height: 10),
-                ...[
-                  ('9:00 AM', 'Rahul S.', 'Court A', '₹600'),
-                  ('11:30 AM', 'Priya K.', 'Football Turf', '₹1,200'),
-                  ('2:00 PM', 'Amit R.', 'Court A', '₹600'),
-                ].map((b) => GestureDetector(
-                  onTap: () => context.go('/bookings'),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                if (bookings.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(20),
                     decoration: _card(),
-                    child: Row(children: [
-                      Container(width: 3, height: 36, decoration: BoxDecoration(color: _kBlue, borderRadius: BorderRadius.circular(2))),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('${b.$2} · ${b.$3}', style: _body(13, c: Colors.white)),
-                        Text(b.$1, style: _body(11)),
-                      ])),
-                      Text(b.$4, style: _head(15, c: _kLime)),
-                    ]),
-                  ),
-                )),
+                    child: Text('No bookings today', style: _body(13, c: Colors.white.withValues(alpha: 0.4))),
+                  )
+                else
+                  ...bookings.take(5).map((b) {
+                    final slot = b['slots'] as Map? ?? {};
+                    final court = slot['courts'] as Map? ?? {};
+                    final user = b['users'] as Map? ?? {};
+                    final amount = b['final_amount'] as int? ?? 0;
+                    return GestureDetector(
+                      onTap: () => context.go('/bookings'),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: _card(),
+                        child: Row(children: [
+                          Container(width: 3, height: 36, decoration: BoxDecoration(color: _kBlue, borderRadius: BorderRadius.circular(2))),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('${user['name'] ?? 'Guest'} · ${court['name'] ?? ''}', style: _body(13, c: Colors.white)),
+                            Text('${slot['start_time'] ?? ''} – ${slot['end_time'] ?? ''}', style: _body(11)),
+                          ])),
+                          Text(formatRupees(amount), style: _head(15, c: _kLime)),
+                        ]),
+                      ),
+                    );
+                  }),
                 const SizedBox(height: 80),
               ]),
             ),

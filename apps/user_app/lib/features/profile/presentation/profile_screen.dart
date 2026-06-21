@@ -428,9 +428,9 @@ class ProfileScreen extends ConsumerWidget {
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    ref.read(demoAuthProvider.notifier).state = false;
-                    context.go('/auth/login');
+                  onPressed: () async {
+                    await ref.read(authRepositoryProvider).signOut();
+                    if (context.mounted) context.go('/auth/login');
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.error,

@@ -16,6 +16,8 @@ dependencies:
     path: ../../packages/design_system
   fieldup_supabase_client:
     path: ../../packages/supabase_client
+  fieldup_core:
+    path: ../../packages/core
 
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5

@@ -46,17 +46,21 @@ class _InterestsScreenState extends ConsumerState<InterestsScreen> {
       return;
     }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (mounted) {
-      ref.read(demoAuthProvider.notifier).state = true;
-      context.go('/home');
+    try {
+      final uid = ref.read(authRepositoryProvider).currentUser?.id;
+      if (uid != null) {
+        await ref.read(authRepositoryProvider).saveSportInterests(
+          userId: uid,
+          sports: _selected.map((s) => s.toLowerCase().replaceAll(' ', '_')).toList(),
+        );
+      }
+    } catch (_) {
+      // Non-fatal — proceed regardless
     }
+    if (mounted) context.go('/home');
   }
 
-  void _skip() {
-    ref.read(demoAuthProvider.notifier).state = true;
-    context.go('/home');
-  }
+  void _skip() => context.go('/home');
 
   @override
   void dispose() {

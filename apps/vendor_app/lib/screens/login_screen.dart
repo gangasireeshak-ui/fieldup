@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../auth_provider.dart';
+import '../providers.dart';
 
 const _kBlue = Color(0xFF3A8DCC);
 const _kBg   = Colors.black;

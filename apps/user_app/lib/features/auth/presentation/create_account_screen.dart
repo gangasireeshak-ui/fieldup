@@ -1,17 +1,19 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fieldup_design_system/fieldup_design_system.dart';
+import 'auth_provider.dart';
 
-class CreateAccountScreen extends StatefulWidget {
+class CreateAccountScreen extends ConsumerStatefulWidget {
   const CreateAccountScreen({super.key});
 
   @override
-  State<CreateAccountScreen> createState() =>
+  ConsumerState<CreateAccountScreen> createState() =>
       _CreateAccountScreenState();
 }
 
-class _CreateAccountScreenState extends State<CreateAccountScreen> {
+class _CreateAccountScreenState extends ConsumerState<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -34,15 +36,31 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please agree to the Terms of Service'),
-        ),
+        const SnackBar(content: Text('Please agree to the Terms of Service')),
       );
       return;
     }
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) context.go('/auth/interests');
+    try {
+      final repo = ref.read(authRepositoryProvider);
+      final uid = repo.currentUser?.id;
+      if (uid != null) {
+        await repo.upsertProfile(
+          userId: uid,
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
+          referralCodeUsed: _referralController.text.trim().isEmpty ? null : _referralController.text.trim(),
+        );
+      }
+      if (mounted) context.go('/auth/interests');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   @override

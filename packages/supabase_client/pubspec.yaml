@@ -11,6 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
   supabase_flutter: ^2.5.3
+  fieldup_core:
+    path: ../core
 
 flutter:
   uses-material-design: true

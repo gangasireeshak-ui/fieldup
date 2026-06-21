@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:fieldup_core/fieldup_core.dart';
+import '../providers.dart';
 
 const _kLime = Color(0xFFC8F23A);
 const _kBg = Colors.black;
@@ -11,11 +14,19 @@ TextStyle _body(double sz, {Color c = const Color(0xFF9E9E9E)}) => TextStyle(
   fontFamily: 'Inter', fontSize: sz, fontWeight: FontWeight.w500, color: c,
 );
 
-class CommandCenterScreen extends StatelessWidget {
+class CommandCenterScreen extends ConsumerWidget {
   const CommandCenterScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kpisAsync = ref.watch(platformKpisProvider);
+    final kpis = kpisAsync.asData?.value ?? {};
+
+    final totalUsers = kpis['total_users'] as int? ?? 0;
+    final bookingsToday = kpis['bookings_today'] as int? ?? 0;
+    final revTodayPaise = kpis['revenue_today_paise'] as int? ?? 0;
+    final liveMatches = kpis['live_matches'] as int? ?? 0;
+    final pendingVenues = kpis['pending_venues'] as int? ?? 0;
     return Scaffold(
       backgroundColor: _kBg,
       body: CustomScrollView(
@@ -81,15 +92,15 @@ class CommandCenterScreen extends StatelessWidget {
               delegate: SliverChildListDelegate([
                 // Platform KPIs — tap analytics
                 Row(children: [
-                  _AdminKpi(label: 'Active Users', value: '2,847', change: '+124 today', positive: true, onTap: () => context.go('/analytics')),
+                  _AdminKpi(label: 'Active Users', value: '$totalUsers', change: 'total', positive: true, onTap: () => context.go('/analytics')),
                   const SizedBox(width: 10),
-                  _AdminKpi(label: 'Live Matches', value: '18', change: 'right now', positive: true, onTap: () => context.go('/analytics')),
+                  _AdminKpi(label: 'Live Matches', value: '$liveMatches', change: 'right now', positive: true, onTap: () => context.go('/analytics')),
                 ]),
                 const SizedBox(height: 10),
                 Row(children: [
-                  _AdminKpi(label: 'Bookings Today', value: '341', change: '+28%', positive: true, onTap: () => context.go('/analytics')),
+                  _AdminKpi(label: 'Bookings Today', value: '$bookingsToday', change: 'confirmed', positive: true, onTap: () => context.go('/analytics')),
                   const SizedBox(width: 10),
-                  _AdminKpi(label: 'Revenue Today', value: '₹1.2L', change: '+15%', positive: true, onTap: () => context.go('/analytics')),
+                  _AdminKpi(label: 'Revenue Today', value: formatRupees(revTodayPaise), change: 'confirmed', positive: true, onTap: () => context.go('/analytics')),
                 ]),
                 const SizedBox(height: 20),
 
@@ -108,7 +119,7 @@ class CommandCenterScreen extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('PENDING APPROVALS', style: _head(16, c: const Color(0xFFF2AD25))),
-                        Text('3 venues · 2 coaches · 1 tournament', style: _body(12)),
+                        Text('$pendingVenues venue${pendingVenues != 1 ? 's' : ''} awaiting review', style: _body(12)),
                       ])),
                       const Icon(Icons.chevron_right, color: Color(0xFFF2AD25), size: 20),
                     ]),

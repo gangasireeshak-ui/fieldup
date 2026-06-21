@@ -17,10 +17,10 @@ Future<void> main() async {
   await GoogleFonts.pendingFonts([GoogleFonts.barlowCondensed()]);
 
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL',
-      defaultValue: 'https://placeholder.supabase.co');
+      defaultValue: 'https://nweibhcjqnumxcpwnrvo.supabase.co');
   const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY',
       defaultValue:
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2MDAwMDAwMDAsImV4cCI6MjAwMDAwMDAwMH0.placeholder');
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im53ZWliaGNqcW51bXhjcHducnZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMjAzNjIsImV4cCI6MjA5NzU5NjM2Mn0.O4LNQOY2Ub69KcKnGBqbsFG2D6NkB8wdEfmIPqYJEgo');
 
   try {
     await Supabase.initialize(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'auth_provider.dart';
+import 'providers.dart';
 import 'screens/login_screen.dart';
 import 'screens/command_center_screen.dart';
 import 'screens/venue_approvals_screen.dart';

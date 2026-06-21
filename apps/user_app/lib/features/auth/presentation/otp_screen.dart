@@ -1,17 +1,19 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fieldup_design_system/fieldup_design_system.dart';
+import 'auth_provider.dart';
 
-class OtpScreen extends StatefulWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key, required this.phone});
   final String phone;
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
   final _controllers = List.generate(6, (_) => TextEditingController());
   final _focuses = List.generate(6, (_) => FocusNode());
   String _otp = '';
@@ -49,8 +51,21 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verify() async {
     if (_otp.length < 6 || _isLoading) return;
     setState(() { _isLoading = true; _isError = false; });
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) context.go('/auth/interests');
+    try {
+      await ref.read(authRepositoryProvider).verifyOtp(
+        phone: widget.phone,
+        token: _otp,
+      );
+      if (mounted) context.go('/auth/create-account');
+    } catch (_) {
+      if (mounted) setState(() { _isLoading = false; _isError = true; });
+    }
+  }
+
+  Future<void> _resendOtp() async {
+    await ref.read(authRepositoryProvider).sendOtp(phone: widget.phone);
+    if (mounted) setState(() => _retrySeconds = 45);
+    _startCountdown();
   }
 
   void _onDigit(int index, String value) {
@@ -240,13 +255,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                     ],
                                   )
                                 : GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _retrySeconds = 45;
-                                        _isError = false;
-                                      });
-                                      _startCountdown();
-                                    },
+                                    onTap: _resendOtp,
                                     child: const Text(
                                       'Resend OTP',
                                       style: TextStyle(

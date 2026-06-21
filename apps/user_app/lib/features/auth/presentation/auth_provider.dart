@@ -1,88 +1,57 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:fieldup_supabase_client/fieldup_supabase_client.dart';
+import 'package:fieldup_core/fieldup_core.dart';
 
 part 'auth_provider.g.dart';
 
-// ── Onboarding state ───────────────────────────────────────────────────────────
-// StateProvider so it can be updated synchronously; initialized from
-// SharedPreferences in main.dart via ProviderScope overrides.
-
+// ── Onboarding ────────────────────────────────────────────────────────────────
 final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 
-// ── Supabase client provider ───────────────────────────────────────────────────
-
+// ── Supabase client ───────────────────────────────────────────────────────────
 @riverpod
-SupabaseClient supabaseClient(Ref ref) =>
-    Supabase.instance.client;
+SupabaseClient supabaseClient(Ref ref) => Supabase.instance.client;
 
-// ── Auth state ─────────────────────────────────────────────────────────────────
-
-final demoAuthProvider = StateProvider<bool>((ref) => false);
-
-@riverpod
-Stream<AuthState> authStateStream(Ref ref) =>
-    ref.watch(supabaseClientProvider).auth.onAuthStateChange;
-
-@riverpod
-bool isAuthenticated(Ref ref) {
-  return ref.watch(demoAuthProvider);
-}
-
-// ── Auth repository ─────────────────────────────────────────────────────────
-
+// ── Repository providers ──────────────────────────────────────────────────────
 @riverpod
 AuthRepository authRepository(Ref ref) =>
     AuthRepository(ref.watch(supabaseClientProvider));
 
-class AuthRepository {
-  AuthRepository(this._supabase);
-  final SupabaseClient _supabase;
+@riverpod
+UserRepository userRepository(Ref ref) =>
+    UserRepository(ref.watch(supabaseClientProvider));
 
-  Future<void> sendOtp({required String phone}) async {
-    await _supabase.auth.signInWithOtp(phone: phone);
-  }
+@riverpod
+VenueRepository venueRepository(Ref ref) =>
+    VenueRepository(ref.watch(supabaseClientProvider));
 
-  Future<void> verifyOtp({
-    required String phone,
-    required String otp,
-  }) async {
-    final response = await _supabase.auth.verifyOTP(
-      phone: phone,
-      token: otp,
-      type: OtpType.sms,
-    );
-    if (response.session == null) {
-      throw Exception('OTP verification failed');
-    }
-  }
+@riverpod
+BookingRepository bookingRepository(Ref ref) =>
+    BookingRepository(ref.watch(supabaseClientProvider));
 
-  Future<void> createProfile({
-    required String name,
-    String? email,
-    String? referralCode,
-  }) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+@riverpod
+CoachRepository coachRepository(Ref ref) =>
+    CoachRepository(ref.watch(supabaseClientProvider));
 
-    await _supabase.from('profiles').upsert({
-      'id': userId,
-      'full_name': name,
-      if (email != null) 'email': email,
-      if (referralCode != null) 'referral_code_used': referralCode,
-    });
-  }
+@riverpod
+MatchRepository matchRepository(Ref ref) =>
+    MatchRepository(ref.watch(supabaseClientProvider));
 
-  Future<void> saveInterests({required List<String> sports}) async {
-    final userId = _supabase.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
+// ── Auth state stream ─────────────────────────────────────────────────────────
+@riverpod
+Stream<AuthState> authStateStream(Ref ref) =>
+    ref.watch(supabaseClientProvider).auth.onAuthStateChange;
 
-    await _supabase.from('profiles').update({
-      'sport_preferences': sports,
-    }).eq('id', userId);
-  }
+// ── Is authenticated — driven by real session ─────────────────────────────────
+@riverpod
+bool isAuthenticated(Ref ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return client.auth.currentSession != null;
+}
 
-  Future<void> signOut() async {
-    await _supabase.auth.signOut();
-  }
+// ── Current user profile ──────────────────────────────────────────────────────
+@riverpod
+Future<FieldUpUser?> currentUserProfile(Ref ref) {
+  final repo = UserRepository(ref.watch(supabaseClientProvider));
+  return repo.fetchCurrentUser();
 }

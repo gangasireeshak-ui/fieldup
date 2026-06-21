@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fieldup_design_system/fieldup_design_system.dart';
+import 'auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
@@ -30,11 +32,20 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
     final phone = '+91${_phoneController.text.trim()}';
-    if (mounted) {
-      setState(() => _isLoading = false);
-      context.push('/auth/otp', extra: phone);
+    try {
+      await ref.read(authRepositoryProvider).sendOtp(phone: phone);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        context.push('/auth/otp', extra: phone);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send OTP: $e'), backgroundColor: AppColors.error),
+        );
+      }
     }
   }
 
