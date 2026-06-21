@@ -4,7 +4,8 @@
 
 -- ── Extensions ──────────────────────────────────────────────────────────────────
 create extension if not exists "uuid-ossp";
-create extension if not exists "postgis"; -- for geo queries
+-- Note: PostGIS removed — it puts spatial_ref_sys in public schema which triggers
+-- a Supabase RLS advisor warning. Geo queries use lat/lng float columns + in-app distance calc.
 
 -- ── ENUMS ───────────────────────────────────────────────────────────────────────
 create type sport_type as enum (
@@ -302,7 +303,6 @@ create table notifications (
 -- ── INDEXES ──────────────────────────────────────────────────────────────────────
 create index idx_venues_city on venues(city);
 create index idx_venues_sports on venues using gin(sports);
-create index idx_venues_location on venues using gist(point(lng, lat));
 create index idx_slots_court_date on slots(court_id, date);
 create index idx_bookings_user on bookings(user_id);
 create index idx_bookings_slot on bookings(slot_id);
