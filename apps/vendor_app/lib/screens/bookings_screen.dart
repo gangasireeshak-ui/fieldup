@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fieldup_core/fieldup_core.dart';
+import '../providers.dart';
 
 const _kBlue = Color(0xFF3A8DCC);
 const _kBg = Colors.black;
@@ -10,20 +13,23 @@ TextStyle _body(double sz, {Color c = const Color(0xFF9E9E9E)}) => TextStyle(
   fontFamily: 'Inter', fontSize: sz, fontWeight: FontWeight.w500, color: c,
 );
 
-class BookingsScreen extends StatelessWidget {
+class BookingsScreen extends ConsumerWidget {
   const BookingsScreen({super.key});
 
-  static const _bookings = [
-    (time: '09:00 AM', player: 'Rahul Sharma', court: 'Court A', sport: 'Badminton', amount: 600, status: 'confirmed'),
-    (time: '11:30 AM', player: 'Priya Kumar', court: 'Football Turf', sport: 'Football', amount: 1200, status: 'confirmed'),
-    (time: '02:00 PM', player: 'Amit Roy', court: 'Court A', sport: 'Badminton', amount: 600, status: 'pending'),
-    (time: '04:30 PM', player: 'Sneha Patel', court: 'Basketball', sport: 'Basketball', amount: 800, status: 'confirmed'),
-    (time: '06:00 PM', player: 'Dev Nair', court: 'Court B', sport: 'Badminton', amount: 600, status: 'cancelled'),
-    (time: '08:00 PM', player: 'Riya Singh', court: 'Football Turf', sport: 'Football', amount: 1200, status: 'confirmed'),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final venuesAsync = ref.watch(myVenuesProvider);
+    final venue = venuesAsync.asData?.value.firstOrNull;
+    final bookingsAsync = venue != null
+        ? ref.watch(todaysBookingsProvider(venue.id))
+        : const AsyncValue<List<Map<String, dynamic>>>.data([]);
+
+    final bookings = bookingsAsync.asData?.value ?? [];
+    final totalRevPaise = bookings
+        .where((b) => b['status'] == 'confirmed')
+        .fold<int>(0, (s, b) => s + (b['final_amount'] as int? ?? 0));
+    final pendingCount = bookings.where((b) => b['status'] == 'pending').length;
+
     return Scaffold(
       backgroundColor: _kBg,
       body: CustomScrollView(
@@ -38,18 +44,41 @@ class BookingsScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // Stats row
+                // Stats row — real data
                 Row(children: [
-                  _BookingStat(label: 'Today', value: '6', sub: 'bookings'),
+                  _BookingStat(label: 'Today', value: '${bookings.length}', sub: 'bookings'),
                   const SizedBox(width: 10),
-                  _BookingStat(label: 'Revenue', value: '₹5,000', sub: 'today'),
+                  _BookingStat(label: 'Revenue', value: formatRupees(totalRevPaise), sub: 'confirmed'),
                   const SizedBox(width: 10),
-                  _BookingStat(label: 'Pending', value: '1', sub: 'approval'),
+                  _BookingStat(label: 'Pending', value: '$pendingCount', sub: 'approval'),
                 ]),
                 const SizedBox(height: 20),
-                Text('TODAY\'S BOOKINGS', style: _body(11, c: Colors.white.withValues(alpha: 0.3))),
+
+                Text("TODAY'S BOOKINGS",
+                    style: _body(11, c: Colors.white.withValues(alpha: 0.3))),
                 const SizedBox(height: 10),
-                ..._bookings.map((b) => _BookingCard(booking: b)),
+
+                if (bookingsAsync.isLoading)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  ))
+                else if (bookings.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.03),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                    ),
+                    child: Center(
+                      child: Text('No bookings today', style: _body(13)),
+                    ),
+                  )
+                else
+                  ...bookings.map((b) => _BookingCard(booking: b)),
+
+                const SizedBox(height: 80),
               ]),
             ),
           ),
@@ -62,6 +91,7 @@ class BookingsScreen extends StatelessWidget {
 class _BookingStat extends StatelessWidget {
   const _BookingStat({required this.label, required this.value, required this.sub});
   final String label, value, sub;
+
   @override
   Widget build(BuildContext context) => Expanded(
     child: Container(
@@ -83,16 +113,27 @@ class _BookingStat extends StatelessWidget {
 
 class _BookingCard extends StatelessWidget {
   const _BookingCard({required this.booking});
-  final ({String time, String player, String court, String sport, int amount, String status}) booking;
+  final Map<String, dynamic> booking;
 
-  Color get _statusColor => switch (booking.status) {
+  Color get _statusColor => switch (booking['status'] as String? ?? '') {
     'confirmed' => const Color(0xFF58B48F),
-    'pending' => const Color(0xFFF2AD25),
-    _ => const Color(0xFFE34B34),
+    'pending'   => const Color(0xFFF2AD25),
+    _           => const Color(0xFFE34B34),
   };
 
   @override
   Widget build(BuildContext context) {
+    final slot    = booking['slots']  as Map?  ?? {};
+    final court   = slot['courts']    as Map?  ?? {};
+    final user    = booking['users']  as Map?  ?? {};
+    final amount  = booking['final_amount'] as int? ?? 0;
+    final status  = booking['status'] as String? ?? '';
+    final player  = user['name'] as String? ?? 'Guest';
+    final courtName = court['name'] as String? ?? '';
+    final sport   = court['sport'] as String? ?? '';
+    final start   = slot['start_time'] as String? ?? '';
+    final end     = slot['end_time']   as String? ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -109,12 +150,12 @@ class _BookingCard extends StatelessWidget {
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(booking.player, style: _head(16)),
+            Text(player, style: _head(16)),
             const Spacer(),
-            Text('₹${booking.amount}', style: _head(16, c: _kBlue)),
+            Text(formatRupees(amount), style: _head(16, c: _kBlue)),
           ]),
           const SizedBox(height: 3),
-          Text('${booking.time} · ${booking.court} · ${booking.sport}',
+          Text('$start–$end · $courtName · $sport',
               style: _body(12, c: Colors.white.withValues(alpha: 0.5))),
         ])),
         const SizedBox(width: 10),
@@ -124,7 +165,7 @@ class _BookingCard extends StatelessWidget {
             color: _statusColor.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: Text(booking.status.toUpperCase(), style: _body(9, c: _statusColor)),
+          child: Text(status.toUpperCase(), style: _body(9, c: _statusColor)),
         ),
       ]),
     );

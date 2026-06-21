@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fieldup_design_system/fieldup_design_system.dart';
+import '../../../features/auth/presentation/auth_provider.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 
@@ -63,13 +65,13 @@ const _activityFeed = [
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   late AnimationController _pulseCtrl;
 
   @override
@@ -89,6 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final user = ref.watch(currentUserProfileProvider).asData?.value;
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -97,7 +100,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           // ── Pinned app bar ──────────────────────────────────────────────────
           SliverPersistentHeader(
             pinned: true,
-            delegate: _OSAppBarDelegate(topPad: topPad, pulseCtrl: _pulseCtrl),
+            delegate: _OSAppBarDelegate(
+              topPad: topPad,
+              pulseCtrl: _pulseCtrl,
+              userName: user?.name?.split(' ').first ?? 'Player',
+              karmaPoints: user?.karmaPoints ?? 0,
+              city: user?.city ?? 'Bangalore',
+            ),
           ),
 
           // ── Announcement banner ─────────────────────────────────────────────
@@ -139,9 +148,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 // ─── OS App Bar ───────────────────────────────────────────────────────────────
 
 class _OSAppBarDelegate extends SliverPersistentHeaderDelegate {
-  const _OSAppBarDelegate({required this.topPad, required this.pulseCtrl});
+  const _OSAppBarDelegate({
+    required this.topPad,
+    required this.pulseCtrl,
+    required this.userName,
+    required this.karmaPoints,
+    required this.city,
+  });
   final double topPad;
   final AnimationController pulseCtrl;
+  final String userName;
+  final int karmaPoints;
+  final String city;
 
   @override
   double get minExtent => topPad + 60;
@@ -179,11 +197,11 @@ class _OSAppBarDelegate extends SliverPersistentHeaderDelegate {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Pravir S.', style: _mono(13, c: Colors.white)),
+                    Text(userName, style: _mono(13, c: Colors.white)),
                     Row(children: [
                       const Icon(Icons.location_on, color: _kLime, size: 11),
                       const SizedBox(width: 3),
-                      Text('JP Nagar', style: _mono(11)),
+                      Text(city, style: _mono(11)),
                       const Icon(Icons.expand_more, color: Color(0xFF9E9E9E), size: 12),
                     ]),
                   ],
@@ -203,7 +221,7 @@ class _OSAppBarDelegate extends SliverPersistentHeaderDelegate {
                   child: Row(children: [
                     const Icon(Icons.bolt, color: _kLime, size: 13),
                     const SizedBox(width: 3),
-                    Text('320', style: _mono(11, c: _kLime)),
+                    Text('$karmaPoints', style: _mono(11, c: _kLime)),
                   ]),
                 ),
                 const SizedBox(width: 8),

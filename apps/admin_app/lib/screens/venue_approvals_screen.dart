@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fieldup_core/fieldup_core.dart';
+import '../providers.dart';
 
 const _kLime = Color(0xFFC8F23A);
 const _kBg = Colors.black;
@@ -10,24 +13,15 @@ TextStyle _body(double sz, {Color c = const Color(0xFF9E9E9E)}) => TextStyle(
   fontFamily: 'Inter', fontSize: sz, fontWeight: FontWeight.w500, color: c,
 );
 
-class VenueApprovalsScreen extends StatefulWidget {
+class VenueApprovalsScreen extends ConsumerStatefulWidget {
   const VenueApprovalsScreen({super.key});
   @override
-  State<VenueApprovalsScreen> createState() => _VenueApprovalsScreenState();
+  ConsumerState<VenueApprovalsScreen> createState() => _VenueApprovalsScreenState();
 }
 
-class _VenueApprovalsScreenState extends State<VenueApprovalsScreen> with SingleTickerProviderStateMixin {
+class _VenueApprovalsScreenState extends ConsumerState<VenueApprovalsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabs;
-
-  static const _venues = [
-    (name: 'Koramangala Sports Hub', owner: 'Rajesh Kumar', sports: 'Badminton, Football', city: 'Bangalore', status: 'pending'),
-    (name: 'BTM Sports Center', owner: 'Anita Shah', sports: 'Cricket, Basketball', city: 'Bangalore', status: 'pending'),
-    (name: 'Whitefield Arena', owner: 'Dev Patel', sports: 'Tennis, Badminton', city: 'Bangalore', status: 'pending'),
-  ];
-  static const _coaches = [
-    (name: 'Suresh Phogat', sport: 'Badminton', exp: '8 years', cert: 'BWF Level 2', status: 'pending'),
-    (name: 'Meera Krishnan', sport: 'Yoga', exp: '5 years', cert: 'RYT 500', status: 'pending'),
-  ];
 
   @override
   void initState() {
@@ -43,6 +37,12 @@ class _VenueApprovalsScreenState extends State<VenueApprovalsScreen> with Single
 
   @override
   Widget build(BuildContext context) {
+    final pendingVenuesAsync = ref.watch(pendingVenuesProvider);
+    final pendingCoachesAsync = ref.watch(pendingCoachesProvider);
+
+    final venueCount = pendingVenuesAsync.asData?.value.length ?? 0;
+    final coachCount = (pendingCoachesAsync.asData?.value.length ?? 0);
+
     return Scaffold(
       backgroundColor: _kBg,
       body: SafeArea(
@@ -60,25 +60,37 @@ class _VenueApprovalsScreenState extends State<VenueApprovalsScreen> with Single
               unselectedLabelColor: Colors.white.withValues(alpha: 0.3),
               labelStyle: _body(12, c: _kLime),
               unselectedLabelStyle: _body(12),
-              tabs: const [Tab(text: 'Venues (3)'), Tab(text: 'Coaches (2)'), Tab(text: 'Approved')],
+              tabs: [
+                Tab(text: 'Venues ($venueCount)'),
+                Tab(text: 'Coaches ($coachCount)'),
+                const Tab(text: 'Approved'),
+              ],
             ),
             Expanded(
               child: TabBarView(
                 controller: _tabs,
                 children: [
-                  _ApprovalList(items: _venues.map((v) => _ApprovalItem(
-                    title: v.name,
-                    subtitle: '${v.owner} · ${v.city}',
-                    detail: v.sports,
-                    type: 'venue',
-                  )).toList()),
-                  _ApprovalList(items: _coaches.map((c) => _ApprovalItem(
-                    title: c.name,
-                    subtitle: '${c.sport} · ${c.exp}',
-                    detail: c.cert,
-                    type: 'coach',
-                  )).toList()),
-                  const Center(child: Text('No pending approvals', style: TextStyle(fontFamily: 'Inter', color: Color(0xFF9E9E9E)))),
+                  // ── Pending venues ──────────────────────────────────────────
+                  pendingVenuesAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e', style: _body(13))),
+                    data: (venues) => venues.isEmpty
+                        ? Center(child: Text('No pending venues 🎉', style: _body(13)))
+                        : _VenueApprovalList(venues: venues, ref: ref),
+                  ),
+                  // ── Pending coaches ─────────────────────────────────────────
+                  pendingCoachesAsync.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e', style: _body(13))),
+                    data: (coaches) => coaches.isEmpty
+                        ? Center(child: Text('No pending coaches 🎉', style: _body(13)))
+                        : _CoachApprovalList(coaches: coaches, ref: ref),
+                  ),
+                  // ── Approved (placeholder) ──────────────────────────────────
+                  Center(
+                    child: Text('Approved venues/coaches appear here.',
+                        style: _body(13, c: Colors.white.withValues(alpha: 0.4))),
+                  ),
                 ],
               ),
             ),
@@ -89,120 +101,214 @@ class _VenueApprovalsScreenState extends State<VenueApprovalsScreen> with Single
   }
 }
 
-class _ApprovalItem {
-  const _ApprovalItem({required this.title, required this.subtitle, required this.detail, required this.type});
-  final String title, subtitle, detail, type;
-}
+// ── Venue approval list ───────────────────────────────────────────────────────
 
-class _ApprovalList extends StatefulWidget {
-  const _ApprovalList({required this.items});
-  final List<_ApprovalItem> items;
+class _VenueApprovalList extends ConsumerStatefulWidget {
+  const _VenueApprovalList({required this.venues, required this.ref});
+  final List<Venue> venues;
+  final WidgetRef ref;
   @override
-  State<_ApprovalList> createState() => _ApprovalListState();
+  ConsumerState<_VenueApprovalList> createState() => _VenueApprovalListState();
 }
 
-class _ApprovalListState extends State<_ApprovalList> {
-  final Set<int> _approved = {};
-  final Set<int> _rejected = {};
+class _VenueApprovalListState extends ConsumerState<_VenueApprovalList> {
+  final Set<String> _approved = {};
+  final Set<String> _rejected = {};
 
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: widget.items.length,
+      itemCount: widget.venues.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, i) {
-        final item = widget.items[i];
-        final approved = _approved.contains(i);
-        final rejected = _rejected.contains(i);
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: approved
-                ? const Color(0xFF58B48F).withValues(alpha: 0.08)
-                : rejected
-                    ? const Color(0xFFE34B34).withValues(alpha: 0.08)
-                    : Colors.white.withValues(alpha: 0.03),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: approved
-                  ? const Color(0xFF58B48F).withValues(alpha: 0.4)
-                  : rejected
-                      ? const Color(0xFFE34B34).withValues(alpha: 0.4)
-                      : Colors.white.withValues(alpha: 0.08),
-            ),
-          ),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                width: 40, height: 40,
-                decoration: BoxDecoration(
-                  color: _kLime.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  item.type == 'venue' ? Icons.stadium_outlined : Icons.person_outlined,
-                  color: _kLime, size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(item.title, style: _head(16)),
-                Text(item.subtitle, style: _body(11)),
-              ])),
-            ]),
-            const SizedBox(height: 10),
-            Text(item.detail, style: _body(12, c: Colors.white.withValues(alpha: 0.5))),
-            const SizedBox(height: 12),
-            if (!approved && !rejected)
-              Row(children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _rejected.add(i)),
-                    child: Container(
-                      height: 40, alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE34B34).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE34B34).withValues(alpha: 0.4)),
-                      ),
-                      child: Text('REJECT', style: _head(14, c: const Color(0xFFE34B34))),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _approved.add(i)),
-                    child: Container(
-                      height: 40, alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: _kLime.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kLime.withValues(alpha: 0.5)),
-                      ),
-                      child: Text('APPROVE', style: _head(14, c: _kLime)),
-                    ),
-                  ),
-                ),
-              ])
-            else
-              Container(
-                height: 40, alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: approved
-                      ? const Color(0xFF58B48F).withValues(alpha: 0.1)
-                      : const Color(0xFFE34B34).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  approved ? '✓ APPROVED' : '✗ REJECTED',
-                  style: _head(14, c: approved ? const Color(0xFF58B48F) : const Color(0xFFE34B34)),
-                ),
-              ),
-          ]),
+        final v = widget.venues[i];
+        final approved = _approved.contains(v.id);
+        final rejected = _rejected.contains(v.id);
+        return _ApprovalCard(
+          icon: Icons.stadium_outlined,
+          title: v.name,
+          subtitle: '${v.city} · ${v.address}',
+          detail: v.sports.join(', '),
+          approved: approved,
+          rejected: rejected,
+          onApprove: () async {
+            await ref.read(adminAuthRepoProvider).approveVenue(v.id);
+            setState(() => _approved.add(v.id));
+            ref.invalidate(pendingVenuesProvider);
+            ref.invalidate(platformKpisProvider);
+          },
+          onReject: () async {
+            await ref.read(adminAuthRepoProvider).rejectVenue(v.id);
+            setState(() => _rejected.add(v.id));
+            ref.invalidate(pendingVenuesProvider);
+            ref.invalidate(platformKpisProvider);
+          },
         );
       },
+    );
+  }
+}
+
+// ── Coach approval list ────────────────────────────────────────────────────────
+
+class _CoachApprovalList extends ConsumerStatefulWidget {
+  const _CoachApprovalList({required this.coaches, required this.ref});
+  final List<Map<String, dynamic>> coaches;
+  final WidgetRef ref;
+  @override
+  ConsumerState<_CoachApprovalList> createState() => _CoachApprovalListState();
+}
+
+class _CoachApprovalListState extends ConsumerState<_CoachApprovalList> {
+  final Set<String> _approved = {};
+  final Set<String> _rejected = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: widget.coaches.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (_, i) {
+        final c = widget.coaches[i];
+        final user = c['users'] as Map? ?? {};
+        final id = c['id'] as String? ?? '';
+        final name = user['name'] as String? ?? 'Coach';
+        final sports = (c['sports'] as List?)?.cast<String>().join(', ') ?? '';
+        final exp = '${c['experience_years'] ?? 0} years exp';
+        final approved = _approved.contains(id);
+        final rejected = _rejected.contains(id);
+        return _ApprovalCard(
+          icon: Icons.person_outlined,
+          title: name,
+          subtitle: '$sports · $exp',
+          detail: (c['certifications'] as List?)?.cast<String>().join(', ') ?? '',
+          approved: approved,
+          rejected: rejected,
+          onApprove: () async {
+            await ref.read(adminAuthRepoProvider).approveCoach(id);
+            setState(() => _approved.add(id));
+            ref.invalidate(pendingCoachesProvider);
+          },
+          onReject: () async {
+            await ref.read(adminAuthRepoProvider).rejectCoach(id);
+            setState(() => _rejected.add(id));
+            ref.invalidate(pendingCoachesProvider);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ── Shared approval card ─────────────────────────────────────────────────────
+
+class _ApprovalCard extends StatelessWidget {
+  const _ApprovalCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.detail,
+    required this.approved,
+    required this.rejected,
+    required this.onApprove,
+    required this.onReject,
+  });
+  final IconData icon;
+  final String title, subtitle, detail;
+  final bool approved, rejected;
+  final VoidCallback onApprove, onReject;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: approved
+            ? const Color(0xFF58B48F).withValues(alpha: 0.08)
+            : rejected
+                ? const Color(0xFFE34B34).withValues(alpha: 0.08)
+                : Colors.white.withValues(alpha: 0.03),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: approved
+              ? const Color(0xFF58B48F).withValues(alpha: 0.4)
+              : rejected
+                  ? const Color(0xFFE34B34).withValues(alpha: 0.4)
+                  : Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(
+              color: _kLime.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: _kLime, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: _head(16)),
+            Text(subtitle, style: _body(11)),
+          ])),
+        ]),
+        if (detail.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(detail, style: _body(12, c: Colors.white.withValues(alpha: 0.5))),
+        ],
+        const SizedBox(height: 12),
+        if (!approved && !rejected)
+          Row(children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: onReject,
+                child: Container(
+                  height: 40, alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE34B34).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE34B34).withValues(alpha: 0.4)),
+                  ),
+                  child: Text('REJECT', style: _head(14, c: const Color(0xFFE34B34))),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: onApprove,
+                child: Container(
+                  height: 40, alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _kLime.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _kLime.withValues(alpha: 0.5)),
+                  ),
+                  child: Text('APPROVE', style: _head(14, c: _kLime)),
+                ),
+              ),
+            ),
+          ])
+        else
+          Container(
+            height: 40, alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: approved
+                  ? const Color(0xFF58B48F).withValues(alpha: 0.1)
+                  : const Color(0xFFE34B34).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              approved ? '✓ APPROVED' : '✗ REJECTED',
+              style: _head(14, c: approved
+                  ? const Color(0xFF58B48F)
+                  : const Color(0xFFE34B34)),
+            ),
+          ),
+      ]),
     );
   }
 }

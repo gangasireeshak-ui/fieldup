@@ -40,7 +40,14 @@ final venueRevenueProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, venueId) =>
         ref.watch(vendorBookingRepoProvider).fetchRevenueStats(venueId));
 
-// ── Today's bookings for a venue ──────────────────────────────────────────────
+// ── Courts for first owned venue ───────────────────────────────────────────────
+final venueCourtsFamilyProvider =
+    FutureProvider.family<List<Court>, String>((ref, venueId) =>
+        ref.watch(vendorVenueRepoProvider).fetchCourts(venueId));
+
+// ── Toggle court active via repo ──────────────────────────────────────────────
+Future<void> toggleCourt(WidgetRef ref, String courtId, {required bool active}) =>
+    ref.read(vendorVenueRepoProvider).toggleCourtActive(courtId, active: active);
 final todaysBookingsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, venueId) {
   final today = DateTime.now();

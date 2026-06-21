@@ -14,6 +14,8 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    final userAsync = ref.watch(currentUserProfileProvider);
+    final user = userAsync.asData?.value;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -127,9 +129,11 @@ class ProfileScreen extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'ALEX REYNOLDS',
-                                style: TextStyle(
+                              Text(
+                                (user?.name?.toUpperCase() ?? 'PLAYER').isEmpty
+                                    ? 'PLAYER'
+                                    : (user?.name?.toUpperCase() ?? 'PLAYER'),
+                                style: const TextStyle(
                                   fontFamily: 'Barlow Condensed',
                                   fontSize: 42,
                                   fontWeight: FontWeight.w700,
@@ -140,7 +144,9 @@ class ProfileScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Primary: Striker • London, UK',
+                                user?.city != null
+                                    ? '${user!.city}'
+                                    : 'Sports Enthusiast',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 13,
@@ -208,9 +214,9 @@ class ProfileScreen extends ConsumerWidget {
                                   size: 18,
                                 ),
                                 const SizedBox(width: 6),
-                                const Text(
-                                  '2,450 KP',
-                                  style: TextStyle(
+                                Text(
+                                  '${user?.karmaPoints ?? 0} KP',
+                                  style: const TextStyle(
                                     fontFamily: 'Barlow Condensed',
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,

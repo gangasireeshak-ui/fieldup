@@ -55,3 +55,8 @@ Future<FieldUpUser?> currentUserProfile(Ref ref) {
   final repo = UserRepository(ref.watch(supabaseClientProvider));
   return repo.fetchCurrentUser();
 }
+
+// ── Coaches list ──────────────────────────────────────────────────────────────
+@riverpod
+Future<List<Coach>> coachesList(Ref ref, {String? sport, String? city}) =>
+    ref.watch(coachRepositoryProvider).fetchCoaches(sport: sport, city: city);
