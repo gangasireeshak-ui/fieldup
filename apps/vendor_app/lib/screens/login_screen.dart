@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../auth_provider.dart';
 
-// ─── Shared vendor design tokens ──────────────────────────────────────────────
-const _kBlue = Color(0xFF3A8DCC);   // Vendor accent — Turf Blue
+const _kBlue = Color(0xFF3A8DCC);
 const _kBg   = Colors.black;
 
 TextStyle _head(double sz, {Color c = Colors.white}) => TextStyle(
@@ -13,18 +13,44 @@ TextStyle _body(double sz, {Color c = const Color(0xFF9E9E9E)}) => TextStyle(
   fontFamily: 'Inter', fontSize: sz, fontWeight: FontWeight.w500, color: c,
 );
 
-BoxDecoration _card({bool active = false}) => BoxDecoration(
-  color: active ? _kBlue.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.03),
-  borderRadius: BorderRadius.circular(16),
-  border: Border.all(
-    color: active ? _kBlue.withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.08),
-  ),
-);
-
 // ─── Vendor Login ─────────────────────────────────────────────────────────────
 
-class VendorLoginScreen extends StatelessWidget {
+class VendorLoginScreen extends ConsumerStatefulWidget {
   const VendorLoginScreen({super.key});
+
+  @override
+  ConsumerState<VendorLoginScreen> createState() => _VendorLoginScreenState();
+}
+
+class _VendorLoginScreenState extends ConsumerState<VendorLoginScreen> {
+  final _phoneCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    final phone = _phoneCtrl.text.trim();
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      if (phone.isNotEmpty) {
+        await ref.read(vendorAuthRepoProvider).sendOtp(phone: phone);
+        // For demo: bypass OTP and go straight in via demoAuth flag
+      }
+      // Demo bypass — works without a Supabase project configured
+      ref.read(vendorDemoAuthProvider.notifier).state = true;
+    } catch (_) {
+      // Fallback to demo mode so the UI is always navigable
+      ref.read(vendorDemoAuthProvider.notifier).state = true;
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +58,6 @@ class VendorLoginScreen extends StatelessWidget {
       backgroundColor: _kBg,
       body: Stack(
         children: [
-          // Background glow
           Positioned(
             top: -100, right: -100,
             child: Container(
@@ -50,7 +75,6 @@ class VendorLoginScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 40),
-                  // Role badge
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
@@ -59,7 +83,7 @@ class VendorLoginScreen extends StatelessWidget {
                       border: Border.all(color: _kBlue.withValues(alpha: 0.4)),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.stadium, color: _kBlue, size: 14),
+                      const Icon(Icons.stadium, color: _kBlue, size: 14),
                       const SizedBox(width: 6),
                       Text('VENUE OWNER', style: _body(11, c: _kBlue)),
                     ]),
@@ -69,8 +93,8 @@ class VendorLoginScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text('Manage your arena like a pro', style: _body(15)),
                   const Spacer(),
-                  // Phone field
                   TextField(
+                    controller: _phoneCtrl,
                     keyboardType: TextInputType.phone,
                     style: const TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 16),
                     decoration: InputDecoration(
@@ -85,22 +109,26 @@ class VendorLoginScreen extends StatelessWidget {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: _kBlue, width: 1.5),
+                        borderSide: const BorderSide(color: _kBlue, width: 1.5),
                       ),
+                      errorText: _error,
                     ),
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () => context.go('/dashboard'),
-                    child: Container(
+                    onTap: _loading ? null : _login,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
                       height: 56,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: _kBlue,
+                        color: _loading ? _kBlue.withValues(alpha: 0.5) : _kBlue,
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: [BoxShadow(color: _kBlue.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
+                        boxShadow: _loading ? null : [BoxShadow(color: _kBlue.withValues(alpha: 0.4), blurRadius: 24, offset: const Offset(0, 8))],
                       ),
-                      child: Text('ENTER COMMAND CENTER →', style: _head(16, c: Colors.white)),
+                      child: _loading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : Text('ENTER COMMAND CENTER →', style: _head(16, c: Colors.white)),
                     ),
                   ),
                   const SizedBox(height: 24),

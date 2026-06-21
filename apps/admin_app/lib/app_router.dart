@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/command_center_screen.dart';
 import 'screens/venue_approvals_screen.dart';
@@ -11,19 +12,27 @@ import 'screens/rewards_screen.dart';
 import 'screens/notifications_screen.dart';
 
 final adminRouterProvider = Provider<GoRouter>((ref) {
+  final auth = ref.watch(adminAuthenticatedProvider);
+
   return GoRouter(
     initialLocation: '/login',
+    redirect: (context, state) {
+      final onShell = state.matchedLocation != '/login';
+      if (!auth && onShell) return '/login';
+      if (auth && state.matchedLocation == '/login') return '/command';
+      return null;
+    },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const AdminLoginScreen()),
       ShellRoute(
         builder: (context, state, child) => AdminShell(child: child),
         routes: [
-          GoRoute(path: '/command', builder: (_, __) => const CommandCenterScreen()),
-          GoRoute(path: '/approvals', builder: (_, __) => const VenueApprovalsScreen()),
+          GoRoute(path: '/command',     builder: (_, __) => const CommandCenterScreen()),
+          GoRoute(path: '/approvals',   builder: (_, __) => const VenueApprovalsScreen()),
           GoRoute(path: '/tournaments', builder: (_, __) => const TournamentControlScreen()),
-          GoRoute(path: '/banners', builder: (_, __) => const BannerStudioScreen()),
-          GoRoute(path: '/analytics', builder: (_, __) => const AnalyticsScreen()),
-          GoRoute(path: '/rewards', builder: (_, __) => const RewardsScreen()),
+          GoRoute(path: '/banners',     builder: (_, __) => const BannerStudioScreen()),
+          GoRoute(path: '/analytics',   builder: (_, __) => const AnalyticsScreen()),
+          GoRoute(path: '/rewards',     builder: (_, __) => const RewardsScreen()),
           GoRoute(path: '/notifications', builder: (_, __) => const NotificationsScreen()),
         ],
       ),
@@ -31,7 +40,7 @@ final adminRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class AdminShell extends StatelessWidget {
+class AdminShell extends ConsumerWidget {
   const AdminShell({super.key, required this.child});
   final Widget child;
 
@@ -49,6 +58,9 @@ class AdminShell extends StatelessWidget {
     'Banners', 'Analytics', 'Rewards', 'Push',
   ];
 
+  // Badge counts — non-zero values show a red dot
+  static const _badges = [0, 5, 1, 0, 0, 0, 0];
+
   int _idx(BuildContext context) {
     final loc = GoRouterState.of(context).matchedLocation;
     final i = _tabs.indexWhere((t) => loc.startsWith(t));
@@ -56,8 +68,9 @@ class AdminShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final idx = _idx(context);
+    const kLime = Color(0xFFC8F23A);
     return Scaffold(
       backgroundColor: Colors.black,
       body: child,
@@ -77,18 +90,42 @@ class AdminShell extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () => context.go(_tabs[i]),
                     behavior: HitTestBehavior.opaque,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Icon(_icons[i], size: 20,
-                            color: active ? const Color(0xFFC8F23A) : Colors.white.withValues(alpha: 0.3)),
-                        const SizedBox(height: 2),
-                        Text(_labels[i],
-                            style: TextStyle(
-                              fontFamily: 'Inter', fontSize: 9,
-                              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                              color: active ? const Color(0xFFC8F23A) : Colors.white.withValues(alpha: 0.3),
-                            )),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_icons[i], size: 20,
+                                color: active ? kLime : Colors.white.withValues(alpha: 0.3)),
+                            const SizedBox(height: 2),
+                            Text(_labels[i],
+                                style: TextStyle(
+                                  fontFamily: 'Inter', fontSize: 9,
+                                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                                  color: active ? kLime : Colors.white.withValues(alpha: 0.3),
+                                )),
+                          ],
+                        ),
+                        if (_badges[i] > 0)
+                          Positioned(
+                            top: 6, right: 8,
+                            child: Container(
+                              width: 14, height: 14,
+                              alignment: Alignment.center,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Color(0xFFE34B34),
+                              ),
+                              child: Text(
+                                '${_badges[i]}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter', fontSize: 8,
+                                  fontWeight: FontWeight.w700, color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

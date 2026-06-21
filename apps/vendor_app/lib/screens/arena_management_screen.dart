@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 const _kBlue = Color(0xFF3A8DCC);
 const _kBg = Colors.black;
@@ -40,7 +41,26 @@ class _ArenaManagementScreenState extends State<ArenaManagementScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Text('ARENA MANAGEMENT', style: _head(28, c: _kBlue)),
+              child: Row(children: [
+                Text('ARENA MANAGEMENT', style: _head(28, c: _kBlue)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => context.go('/arena/add-venue'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: _kBlue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _kBlue.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.add, color: _kBlue, size: 14),
+                      const SizedBox(width: 4),
+                      Text('ADD VENUE', style: _head(13, c: _kBlue)),
+                    ]),
+                  ),
+                ),
+              ]),
             ),
             const SizedBox(height: 16),
             // Court selector

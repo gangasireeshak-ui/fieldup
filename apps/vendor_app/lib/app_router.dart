@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/arena_management_screen.dart';
+import 'screens/add_venue_screen.dart';
 import 'screens/pricing_screen.dart';
 import 'screens/availability_screen.dart';
 import 'screens/bookings_screen.dart';
@@ -11,8 +13,16 @@ import 'screens/revenue_screen.dart';
 import 'screens/customer_insights_screen.dart';
 
 final vendorRouterProvider = Provider<GoRouter>((ref) {
+  final auth = ref.watch(vendorAuthenticatedProvider);
+
   return GoRouter(
     initialLocation: '/login',
+    redirect: (context, state) {
+      final onShell = state.matchedLocation != '/login';
+      if (!auth && onShell) return '/login';
+      if (auth && state.matchedLocation == '/login') return '/dashboard';
+      return null;
+    },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const VendorLoginScreen()),
       ShellRoute(
@@ -20,6 +30,10 @@ final vendorRouterProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/dashboard', builder: (_, __) => const VendorDashboardScreen()),
           GoRoute(path: '/arena', builder: (_, __) => const ArenaManagementScreen()),
+          GoRoute(
+            path: '/arena/add-venue',
+            builder: (_, __) => const AddVenueScreen(),
+          ),
           GoRoute(path: '/pricing', builder: (_, __) => const PricingScreen()),
           GoRoute(path: '/availability', builder: (_, __) => const AvailabilityScreen()),
           GoRoute(path: '/bookings', builder: (_, __) => const BookingsScreen()),
@@ -31,7 +45,7 @@ final vendorRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class VendorShell extends StatelessWidget {
+class VendorShell extends ConsumerWidget {
   const VendorShell({super.key, required this.child});
   final Widget child;
 
@@ -56,7 +70,7 @@ class VendorShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final idx = _idx(context);
     return Scaffold(
       backgroundColor: Colors.black,
